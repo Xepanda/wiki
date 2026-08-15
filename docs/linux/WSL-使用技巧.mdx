@@ -1,0 +1,112 @@
+---
+title: WSL 使用技巧
+---
+
+# WSL 使用技巧
+
+## WSL 基础
+
+WSL (Windows Subsystem for Linux) 让你在 Windows 上直接运行 Linux 环境。
+
+### 安装 Ubuntu
+
+```powershell
+# PowerShell 管理员模式
+wsl --install -d Ubuntu
+```
+
+## 常用命令
+
+### WSL 管理
+
+| 命令 | 说明 |
+|------|------|
+| `wsl -l -v` | 列出所有发行版及版本 |
+| `wsl --shutdown` | 关闭所有 WSL 实例 |
+| `wsl -t Ubuntu` | 终止指定发行版 |
+| `wsl --set-version Ubuntu 2` | 切换到 WSL2 |
+
+### 导出/导入
+
+```powershell
+# 导出（备份）
+wsl --export Ubuntu D:\backup\ubuntu.tar
+
+# 导入（迁移到其他盘）
+wsl --import Ubuntu D:\WSL\Ubuntu D:\backup\ubuntu.tar
+```
+
+## 文件互通
+
+| WSL 路径 | Windows 路径 |
+|----------|-------------|
+| `/mnt/c/` | `C:\` |
+| `/mnt/d/` | `D:\` |
+| Linux 根目录 | `\\wsl$\Ubuntu\` |
+
+### 常用操作
+
+```bash
+# 在 WSL 中打开 Windows 目录
+cd /mnt/c/Users/ePanda/Desktop
+
+# 在 Windows 中打开 WSL 目录（资源管理器地址栏输入）
+\\wsl$\Ubuntu\home\epanda
+```
+
+## 性能优化
+
+### .wslconfig 配置
+
+在 `C:\Users\<用户名>\.wslconfig` 中限制资源：
+
+```ini
+[wsl2]
+memory=8GB
+processors=4
+swap=4GB
+localhostForwarding=true
+```
+
+### 避免跨文件系统操作
+
+- **快**：WSL 内操作 `/home/epanda/` 下的文件
+- **慢**：频繁读写 `/mnt/c/` 下的 Windows 文件
+
+## 网络与代理
+
+### WSL2 访问 Windows 代理
+
+```bash
+# 获取 Windows 宿主机 IP
+export HOST_IP=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}')
+
+# 设置代理（例如 Clash 在 Windows 上监听 7890）
+export http_proxy="http://$HOST_IP:7890"
+export https_proxy="http://$HOST_IP:7890"
+```
+
+### Windows 访问 WSL 服务
+
+WSL2 默认通过 localhost 转发，Windows 直接访问 `localhost:<端口>` 即可。
+
+## 常见问题
+
+### WSL2 内存占用过高
+
+```powershell
+# 查看 WSL 进程
+wsl --status
+# 限制内存：编辑 .wslconfig
+```
+
+### 时间不同步
+
+```bash
+sudo hwclock -s
+```
+
+### 端口占用冲突
+
+WSL2 和 Windows 共享端口时可能出现冲突，优先在 WSL 启动服务再用 localhost 访问。
+
