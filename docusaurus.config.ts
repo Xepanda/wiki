@@ -64,15 +64,7 @@ const config: Config = {
           items: [
             { label: 'Git', to: '/category/git' },
             { label: 'Linux 与 WSL', to: '/category/linux' },
-            { label: '开发工具', to: '/category/开发工具' },
-          ],
-        },
-        {
-          title: '更多',
-          items: [
-            { label: 'AI 与大模型', to: '/category/ai' },
-            { label: '项目', to: '/category/项目' },
-            { label: '笔记', to: '/category/笔记' },
+            { label: '开发工具', to: '/category/dev-tools' },
           ],
         },
         {
