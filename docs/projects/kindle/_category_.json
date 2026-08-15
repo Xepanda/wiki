@@ -1,0 +1,9 @@
+{
+  "label": "Kindle 改造与开发",
+  "position": 1,
+  "link": {
+    "type": "generated-index",
+    "slug": "/category/projects/kindle",
+    "description": "基于 Kindle 8 (KT3) 的越狱、系统阻断、Wi-Fi SSH 远程开发、底层控制与墨水屏物联网应用完整全流程指南。"
+  }
+}

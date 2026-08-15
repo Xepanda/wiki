@@ -1,0 +1,84 @@
+---
+title: Wi-Fi 纯无线 SSH 开发环境搭建与网络排错
+sidebar_position: 2
+---
+
+# Wi-Fi 纯无线 SSH 开发环境搭建与网络排错
+
+本篇记录了如何通过 **USBNetwork** 插件开启纯 Wi-Fi 下的 SSH 服务，并深度解析了局域网 AP 隔离、Windows 防火墙等实战排错经验。
+
+---
+
+## 1. 安装与配置 USBNetwork
+
+USBNetwork 是 NiLuJe 为 Kindle 开发的核心网络扩展，支持通过 USB 或 Wi-Fi 暴露 Telnet/Dropbear/OpenSSH 服务。
+
+### 1.1 部署与安装
+1. 将 `Update_usbnet_0.22.N_install_pw2_and_up.bin` 放入 `E:\mrpackages\`；
+2. 将 `extensions/usbnet` 放入 `E:\extensions\`；
+3. 在 Kindle 搜索框输入 `;log mrpi` 完成底层服务安装。
+
+### 1.2 配置文件修改 (`usbnet/etc/config`)
+修改 Kindle 存储中的 `usbnet/etc/config`，设定纯 Wi-Fi SSH 模式：
+```sh
+#!/bin/sh
+KINDLE_IP=192.168.15.244
+USE_WIFI="true"
+USE_WIFI_SSHD_ONLY="true"
+USE_OPENSSH="false"
+QUIET_DROPBEAR="false"
+TWEAK_MAC_ADDRESS="false"
+```
+
+### 1.3 电脑端免密公钥注入
+将电脑端的 `id_rsa.pub` 内容分别复制到 Kindle 的：
+* `E:\usbnet\etc\authorized_keys`
+* `E:\usbnet\etc\dot.ssh\authorized_keys`
+
+---
+
+## 2. KUAL 界面开启流程
+
+拔掉 USB 数据线（Kindle 插入 USB 时会出于安全锁定网络切换）：
+1. 打开 **KUAL** $\rightarrow$ 进入 **USBNetwork**；
+2. 点击 **`Restrict SSH to WiFi, stay in USBMS`**（确保锁定纯 Wi-Fi 模式）；
+3. 点击 **`* Toggle USBNetwork *`**；
+4. 点击 **`** USBNetwork Status **`**，确认屏幕提示：
+   > `* SSHD is up (usbms, wifi only) *`
+
+---
+
+## 3. 局域网连通性经典排错（重点避坑）
+
+在搭建纯无线开发环境时，可能会遇到电脑无法 Ping 通或连接 Kindle 的问题，通常是以下 3 个原因：
+
+### 坑 1：Windows Wi-Fi 网络配置文件为“公用 (Public)”
+* **现象**：Windows 防火墙在“公用网络”模式下会拦截局域网 P2P 发现与端口访问。
+* **解决**：在 Windows 设置中将当前 Wi-Fi 网络配置文件从【公用】切换为【专用网络 (Private)】。
+
+### 坑 2：路由器无线客户端二层隔离 (AP Isolation)
+* **现象**：电脑（`192.168.31.156`）和 Kindle（`192.168.31.74`）在同一 Wi-Fi 下，但互相 Ping 提示 `DestinationHostUnreachable`。
+* **解决**：
+  1. 在路由器后台给 Kindle 做 **DHCP 静态 IP 绑定**（绑定 MAC 地址，如 `50:F5:DA:97:F6:3A`）；
+  2. 关掉路由器的“智能防蹭网”受限策略；
+  3. Kindle 开关一次飞行模式，电脑断开重连 Wi-Fi 刷新网关路由表。
+
+---
+
+## 4. 电脑端 1 键免密直连配置
+
+在电脑的 `~/.ssh/config` 中配置 Host 别名：
+
+```ssh-config
+Host kindle
+  HostName 192.168.31.74
+  User root
+  IdentityFile C:\Users\maida\.ssh\id_rsa
+  ServerAliveInterval 30
+  ServerAliveCountMax 3
+```
+
+现在在任何终端或 VS Code 中，只需一条命令即可秒进系统：
+```bash
+ssh kindle
+```
