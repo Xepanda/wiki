@@ -80,13 +80,25 @@ start framework
 
 ## 4. RTC 深度定时唤醒与超长续航架构
 
-墨水屏看板的核心优势在于“无背光、静态显示零耗电”。实现 3~6 个月超长续航的架构如下：
+墨水屏看板的核心优势在于“无背光、静态显示零耗电”。通过 RTC 硬件闹钟定时唤醒，可以实现单次充电运行 3~6 个月的超低功耗循环：
 
-```
-[深度休眠 CPU 掉电] ──(RTC 硬件定时器到期)──> [系统唤醒] ──> [开启 Wi-Fi 抓取数据] ──> [渲染并刷新墨水屏] ──> [关闭 Wi-Fi 再次进入休眠]
+```mermaid
+flowchart TD
+    A["💤 深度休眠 (CPU 掉电挂起)"] -->|"RTC 硬件定时器到期 (如 1800s)"| B["⏰ 硬件中断唤醒系统"]
+    B --> C["📶 开启 Wi-Fi 射频模块并联网"]
+    C --> D["🌐 拉取最新数据 (天气/日历/股票/HA)"]
+    D --> E["🖼️ 生成 800×600 灰度图 (dashboard.png)"]
+    E --> F["🖋️ eips -g 刷写墨水屏 (局部/全局刷新)"]
+    F --> G["🔌 关闭 Wi-Fi 射频模块 (省电核心)"]
+    G --> H["⏳ 计算下一次唤醒时间点"]
+    H --> A
+
+    style A fill:#f4f2ec,stroke:#d97757,stroke-width:2px
+    style E fill:#f4f2ec,stroke:#d97757,stroke-width:2px
+    style F fill:#d97757,stroke:#c15f3d,stroke-width:2px,color:#fff
 ```
 
-使用 `rtcwake` 实现定时唤醒：
+### 定时唤醒命令实战
 ```bash
 # 睡眠 1800 秒（30分钟）后硬件自动唤醒并继续执行脚本
 rtcwake -d /dev/rtc0 -m mem -s 1800

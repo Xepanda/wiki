@@ -17,6 +17,20 @@ Kindle 8 属于第 8 代入门级电子书阅读器（代号 `KT3`），采用 A
 * **开机提示**：重启 Kindle 开机底部若出现 `**** JAILBREAK ****` 或 `Hush, little baby...` 字符串，代表越狱注入器（Jailbreak payload）已成功驻留；
 * **签名密钥**：系统需要刷入 **MKK (MobileRead Kindle Booklet)** 签名热修复补丁，使 Kindle 允许执行自定义自制应用（Booklet/Kindlet）。
 
+```mermaid
+graph LR
+    A["🔓 硬件越狱注入"] --> B["🔑 MKK 签名热修复"]
+    B --> C["🛡️ OTA 双重免疫锁"]
+    C --> D["📦 MRPI 扩展引擎"]
+    D --> E["📱 KUAL Coplate 桌面"]
+    E --> F["🌐 Wi-Fi SSH 终端"]
+
+    style A fill:#f4f2ec,stroke:#d97757,stroke-width:2px
+    style C fill:#f4f2ec,stroke:#d97757,stroke-width:2px
+    style E fill:#f4f2ec,stroke:#d97757,stroke-width:2px
+    style F fill:#d97757,stroke:#c15f3d,stroke-width:2px,color:#fff
+```
+
 ---
 
 ## 2. 永久阻断 OTA 自动升级（双重防御）
