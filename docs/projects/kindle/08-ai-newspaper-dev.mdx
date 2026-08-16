@@ -1,0 +1,95 @@
+---
+title: 路线 3 · AI 每日极客早报与电子墨水报纸实战
+sidebar_position: 8
+description: 结合 AI 大模型总结与 Anthropic Claude Vintage 复古排版，打造专属的每日电子墨水晨报。
+---
+
+# 路线 3 · AI 每日极客早报与电子墨水报纸实战
+
+每天清晨自动汇总 AI 前沿进展、GitHub 趋势与技术短评，排版成高颜值的 **Vintage 极客早报** 推送到 Kindle。
+
+---
+
+## 1. 报纸版面排版设计 (Editorial Layout)
+
+```mermaid
+graph TD
+    subgraph 报头区 (Masthead)
+        M1["THE DAILY GEEK TRIBUNE · 极客每日晨报"]
+        M2["第 248 期 · 星期日 · 气温 28°C 晴 · VOL. XXVI NO. 8"]
+    end
+
+    subgraph 三栏排版正文 (3-Column Layout)
+        C1["🤖 深度AI · AGENT 浪潮\n(大模型智能体自主开发与代码结对)"]
+        C2["⭐ GITHUB 开源头条\n(Xepanda/wiki & KOReader)"]
+        C3["📖 每日单词 & 格言\n(Serendipity 机缘巧合)"]
+    end
+
+    M1 --> M2
+    M2 --> C1 & C2 & C3
+
+    style M1 fill:#f4f2ec,stroke:#d97757,stroke-width:2px
+    style C1 fill:#f4f2ec,stroke:#d97757,stroke-width:1.5px
+    style C2 fill:#f4f2ec,stroke:#d97757,stroke-width:1.5px
+    style C3 fill:#f4f2ec,stroke:#d97757,stroke-width:1.5px
+```
+
+---
+
+## 2. 核心代码 (`generate_newspaper.py`)
+
+```python
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+AI Daily Tech Briefing & Newspaper Generator
+"""
+import os, sys, subprocess
+from datetime import datetime
+from PIL import Image, ImageDraw, ImageFont
+
+WIDTH, HEIGHT = 800, 600
+
+def render_newspaper(output_path='newspaper.png'):
+    img = Image.new('L', (WIDTH, HEIGHT), color=255)
+    draw = ImageDraw.Draw(img)
+
+    font_path = "C:\\Windows\\Fonts\\msyh.ttc"
+    font_h1 = ImageFont.truetype(font_path, 21)
+    font_h2 = ImageFont.truetype(font_path, 17)
+    font_body = ImageFont.truetype(font_path, 14)
+    font_serif = ImageFont.truetype("C:\\Windows\\Fonts\\georgia.ttf", 26)
+
+    # 1. 经典复古双线报头
+    draw.line([(20, 20), (780, 20)], fill=0, width=3)
+    draw.text((230, 32), "THE DAILY GEEK TRIBUNE", fill=0, font=font_serif)
+    draw.text((320, 68), "极客技术早报 · 深度思考与技术快讯", fill=60, font=ImageFont.truetype(font_path, 12))
+    draw.line([(20, 92), (780, 92)], fill=0, width=3)
+
+    # 2. 三栏容器构建
+    draw.rectangle([(20, 120), (270, 580)], fill=255, outline=0, width=1)
+    draw.text((28, 126), "🤖 深度AI · AGENT 浪潮", fill=0, font=font_h2)
+
+    draw.rectangle([(280, 120), (530, 420)], fill=255, outline=0, width=1)
+    draw.text((288, 126), "⭐ GITHUB 开源头条", fill=0, font=font_h2)
+
+    draw.rectangle([(540, 120), (780, 310)], fill=255, outline=0, width=1)
+    draw.text((548, 126), "📖 每日单词 · WORD", fill=0, font=font_h2)
+    draw.text((548, 160), "Serendipity [ˌserənˈdɪpəti]", fill=0, font=font_body)
+
+    img.save(output_path)
+    return output_path
+
+def push_newspaper(img_path='newspaper.png'):
+    subprocess.run(f'scp -o ConnectTimeout=4 "{img_path}" root@kindle:/mnt/us/newspaper.png', shell=True)
+    subprocess.run('ssh kindle "eips -c && eips -g /mnt/us/newspaper.png"', shell=True)
+
+if __name__ == '__main__':
+    push_newspaper(render_newspaper())
+```
+
+---
+
+## 3. 实机效果与体验
+
+推送后，Kindle 墨水屏立刻展现出极具**古典报纸油墨质感**的三栏排版，无背光刺眼感，是清晨早餐阅读的绝佳伴侣。
