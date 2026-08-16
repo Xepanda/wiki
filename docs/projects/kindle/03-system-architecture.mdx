@@ -19,20 +19,20 @@ Kindle 并非封闭的单片机，它本质上是一台运行精简版 **Embedde
 
 ```mermaid
 graph TD
-    subgraph 应用层 (Application Layer)
+    subgraph L1["📱 应用层 (Application Layer)"]
         A1["📚 原生阅读器 (Java / WebKit)"]
         A2["📱 KUAL 极客自制应用"]
         A3["📟 自定义 Python / Go / Rust 脚本"]
     end
 
-    subgraph 系统进程总线 (IPC Layer)
+    subgraph L2["🚌 系统进程总线 (IPC Layer)"]
         B1["🚌 LIPC (Lab126 进程间通信总线)"]
         B2["⚡ powerd (电源守护)"]
         B3["📶 wifid (无线守护)"]
         B4["🖼️ appmgrd (应用管理)"]
     end
 
-    subgraph 驱动与硬件接口 (Kernel & Hardware Layer)
+    subgraph L3["⚙️ 驱动与硬件接口 (Kernel & Hardware Layer)"]
         C1["🖋️ Linux Framebuffer (/dev/fb0) & EPDC 控制器"]
         C2["⏰ RTC 硬件定时器 (/dev/rtc0)"]
         C3["💾 存储分区 (/ 只读系统盘, /mnt/us 读写用户盘)"]

@@ -16,12 +16,12 @@ Cloudflare 并不是一台装了 Linux 系统的传统云服务器（VPS），�
 
 ```mermaid
 flowchart LR
-    subgraph 传统云服务器 (VPS)
-        A["👤 访问者"] -->|"长距离跨国公网链路"| B["🏢 单一地域机房 (如北京/硅谷)\n需要手动维护 Nginx / SSL / 系统补丁"]
+    subgraph S1["🏢 传统云服务器 (VPS)"]
+        A["👤 访问者"] -->|"长距离跨国公网链路"| B["🏢 单一地域机房 (如北京/硅谷)<br/>需要手动维护 Nginx / SSL / 系统补丁"]
     end
 
-    subgraph Cloudflare 边缘生态 (Serverless)
-        C["👤 访问者"] -->|"就近 Anycast 路由 (几毫秒)"| D["⚡ 距离最近的边缘节点 (300+ 城市)\n自动提供 CDN / DDoS 防护 / SSL"]
+    subgraph S2["⚡ Cloudflare 边缘生态 (Serverless)"]
+        C["👤 访问者"] -->|"就近 Anycast 路由 (几毫秒)"| D["⚡ 距离最近的边缘节点 (300+ 城市)<br/>自动提供 CDN / DDoS 防护 / SSL"]
         D --> E["🚀 Pages (静态网站)"]
         D --> F["⚙️ Workers (边缘代码)"]
         D --> G["🚇 Tunnels (内网穿透)"]
