@@ -50,7 +50,30 @@ TWEAK_MAC_ADDRESS="false"
 
 ## 3. 局域网连通性经典排错（重点避坑）
 
-在搭建纯无线开发环境时，可能会遇到电脑无法 Ping 通或连接 Kindle 的问题，通常是以下 3 个原因：
+在搭建纯无线开发环境时，可能会遇到电脑无法 Ping 通或连接 Kindle 的问题。以下是排查与解决的**全流程决策树**：
+
+```mermaid
+flowchart TD
+    Start["🔌 尝试连接 ssh root@kindle"] --> P1{"Ping Kindle IP 是否通？\n(如 192.168.31.74)"}
+    P1 -->|"❌ 提示不可达/超时"| N1["排查网络层与路由器隔离"]
+    N1 --> N1_1["1. Windows Wi-Fi 切换为【专用网络 (Private)】"]
+    N1 --> N1_2["2. 路由器 DHCP 静态绑定 MAC (如 50:F5:DA:97:F6:3A)"]
+    N1 --> N1_3["3. Kindle 开关一次飞行模式重连刷新网关"]
+    N1_3 --> P1
+
+    P1 -->|"✅ Ping 响应正常 (10~20ms)"| P2{"SSH 端口 22 是否开放？\n(Test-NetConnection -Port 22)"}
+    P2 -->|"❌ 端口关闭/拒绝连接"| S1["排查 Kindle 端 SSHD 状态"]
+    S1 --> S1_1["1. 必须拔掉 USB 数据线 (拔线解除网络锁定)"]
+    S1 --> S1_2["2. KUAL -> Toggle USBNetwork -> 确认 Status 为 up"]
+    S1_2 --> P2
+
+    P2 -->|"✅ 端口连接成功"| P3{"是否提示 Permission denied?"}
+    P3 -->|"❌ 密钥未匹配"| K1["注入 id_rsa.pub 至 authorized_keys"]
+    P3 -->|"✅ 登录成功"| OK["🎉 秒进 Kindle Linux 终端！\n[root@kindle root]#"]
+
+    style Start fill:#f4f2ec,stroke:#d97757,stroke-width:2px
+    style OK fill:#d97757,stroke:#c15f3d,stroke-width:2px,color:#fff
+```
 
 ### 坑 1：Windows Wi-Fi 网络配置文件为“公用 (Public)”
 * **现象**：Windows 防火墙在“公用网络”模式下会拦截局域网 P2P 发现与端口访问。

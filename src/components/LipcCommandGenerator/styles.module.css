@@ -1,0 +1,145 @@
+.container {
+  background: var(--claude-surface-elevated, #ffffff);
+  border: 1px solid var(--claude-border, #e6e2d8);
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin: 2rem 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.header {
+  margin-bottom: 1.2rem;
+}
+
+.badge {
+  display: inline-block;
+  background: rgba(217, 119, 87, 0.12);
+  color: var(--claude-clay, #d97757);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  text-transform: uppercase;
+  margin-bottom: 0.3rem;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--ifm-font-color-base, #141413);
+}
+
+.presetsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 1.4rem;
+}
+
+.presetBtn {
+  background: var(--claude-surface-warm, #f4f2ec);
+  border: 1px solid var(--claude-border, #e6e2d8);
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--ifm-font-color-base, #141413);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.18s ease;
+}
+
+.presetBtn:hover {
+  border-color: var(--claude-clay, #d97757);
+  color: var(--claude-clay, #d97757);
+}
+
+.presetBtnActive {
+  background: var(--claude-clay, #d97757) !important;
+  border-color: var(--claude-clay, #d97757) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(217, 119, 87, 0.3);
+}
+
+.detailBox {
+  background: var(--claude-surface-warm, #f4f2ec);
+  border: 1px solid var(--claude-border, #e6e2d8);
+  border-radius: 12px;
+  padding: 1.2rem;
+}
+
+.detailHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.8rem;
+}
+
+.cmdTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ifm-font-color-base, #141413);
+}
+
+.copyBtn {
+  background: transparent;
+  border: 1px solid var(--claude-border, #e6e2d8);
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ifm-font-color-base, #141413);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.copyBtn:hover {
+  border-color: var(--claude-clay, #d97757);
+  color: var(--claude-clay, #d97757);
+}
+
+.codeBlock {
+  background: #1c1b1a;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.8rem;
+  overflow-x: auto;
+}
+
+.codeBlock code {
+  color: #ea997d;
+  background: transparent;
+  border: none;
+  font-size: 0.9rem;
+  font-family: var(--ifm-font-family-monospace);
+}
+
+.desc {
+  font-size: 0.88rem;
+  color: var(--ifm-font-color-secondary, #66635c);
+  margin-bottom: 0.8rem;
+  line-height: 1.5;
+}
+
+.sshRow {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.82rem;
+  background: rgba(0, 0, 0, 0.04);
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  flex-wrap: wrap;
+}
+
+.sshLabel {
+  font-weight: 600;
+  color: var(--claude-text-muted, #8c877d);
+}
+
+.sshRow code {
+  background: transparent;
+  border: none;
+  color: var(--claude-clay, #d97757);
+  padding: 0;
+}
