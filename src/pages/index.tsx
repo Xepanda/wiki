@@ -74,6 +74,13 @@ export default function Home(): ReactNode {
               <div className="claude-card-arrow">查阅专栏 →</div>
             </Link>
 
+            <Link className="claude-card" to="/category/projects/cloudflare">
+              <span className="claude-card-icon">☁️</span>
+              <Heading as="h3">Cloudflare 开发者全栈</Heading>
+              <p>Pages 极速托管、Workers 边缘函数、Tunnels 零公网穿透与 R2 免流量费存储</p>
+              <div className="claude-card-arrow">查阅实战 →</div>
+            </Link>
+
             <Link className="claude-card" to="/category/git">
               <span className="claude-card-icon">🌿</span>
               <Heading as="h3">Git 版本控制与工作流</Heading>
@@ -97,16 +104,9 @@ export default function Home(): ReactNode {
 
             <Link className="claude-card" to="/category/pandawiki">
               <span className="claude-card-icon">📚</span>
-              <Heading as="h3">知识库构建与部署</Heading>
-              <p>Docusaurus 深度定制、GitHub Pages 自动化 CI/CD 部署与写作指南</p>
+              <Heading as="h3">知识库构建与规范</Heading>
+              <p>Docusaurus 深度定制、Claude 主题设计系统、Mermaid 图表与 Agent 写作规范</p>
               <div className="claude-card-arrow">查阅沉淀 →</div>
-            </Link>
-
-            <Link className="claude-card" to="/intro">
-              <span className="claude-card-icon">💡</span>
-              <Heading as="h3">思考与随笔</Heading>
-              <p>技术视野探索、软硬件交互思考、系统设计哲学与日常备忘</p>
-              <div className="claude-card-arrow">查阅全部 →</div>
             </Link>
           </div>
         </section>
