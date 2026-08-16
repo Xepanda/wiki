@@ -1,0 +1,9 @@
+{
+  "label": "泰山派 All-in-One 智能中枢",
+  "position": 3,
+  "link": {
+    "type": "generated-index",
+    "slug": "/category/projects/taishanpi",
+    "description": "基于立创·泰山派 (RK3566 2+16G) 与 Armbian 系统的 MQTT 物联网网关、Home Assistant 智能中枢、轻量级 NAS 与 Docker 旁路由四合一 All-in-One 极客实战与性能调优全纪录。"
+  }
+}

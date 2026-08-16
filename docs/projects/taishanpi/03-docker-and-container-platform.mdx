@@ -1,0 +1,82 @@
+---
+title: Docker 容器底座部署与日志轮转限制（eMMC寿命保护）
+sidebar_position: 3
+---
+
+# Docker 容器底座部署与日志轮转限制（eMMC寿命保护）
+
+在嵌入式开发板上运行 Docker 时，最容易出现的故障之一是：**容器标准输出（stdout）日志无限制膨胀，几周后直接撑爆 16GB eMMC 导致系统只读卡死**。
+
+本节记录 Docker Engine 的标准化安装，以及至关重要的日志轮转限制与镜像加速配置。
+
+---
+
+## 1. 安装 Docker 与 Docker Compose
+
+在 Debian 13 (Trixie) 环境下安装官方发行版维护的 Docker 套件：
+
+```bash
+DEBIAN_FRONTEND=noninteractive apt-get install -y \
+  docker.io \
+  docker-compose \
+  docker-buildx \
+  containerd \
+  bridge-utils \
+  iptables
+```
+
+---
+
+## 2. 配置 `/etc/docker/daemon.json`（核心关键）
+
+创建并配置 Docker 守护进程参数，限制单个容器日志最大为 10MB、最多保留 3 个归档，并加入主流可用的镜像拉取加速站：
+
+```json
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "3"
+  },
+  "storage-driver": "overlay2",
+  "registry-mirrors": [
+    "https://dockerpull.org",
+    "https://docker.1panel.live",
+    "https://hub.rat.dev"
+  ]
+}
+```
+
+应用并启动 Docker：
+```bash
+systemctl restart docker
+systemctl enable docker
+```
+
+---
+
+## 3. 验证 Docker 运行状态
+
+```bash
+docker --version
+# 输出: Docker version 26.1.5+dfsg1-9+b13, build 26.1.5+dfsg1-9+b13
+
+docker-compose --version
+# 输出: docker-compose version 2.26.1-4
+
+docker info | grep -E "Server Version|Storage Driver|Logging Driver"
+```
+
+---
+
+## 4. 嵌入式 eMMC 寿命保护三大法则
+
+1. **Docker 日志上限**：通过 `daemon.json` 全局限制日志单文件 10MB，杜绝日志无限增长。
+2. **清理无用镜像与构建缓存**：
+   ```bash
+   docker system prune -f
+   ```
+3. **清理 APT 缓存**：
+   ```bash
+   apt-get clean && rm -rf /var/lib/apt/lists/*
+   ```

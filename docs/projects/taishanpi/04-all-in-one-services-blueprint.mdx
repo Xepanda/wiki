@@ -1,0 +1,186 @@
+---
+title: MQTT + HA + 旁路由 + NAS 容器编排与 ESP32 接入全指南
+sidebar_position: 4
+---
+
+# MQTT + HA + 旁路由 + NAS 容器编排与 ESP32 接入全指南
+
+完成基础配置后，本篇给出 **MQTT (Mosquitto) + Home Assistant + OpenWrt 旁路由 + Samba / AList 轻量 NAS** 的完整 Docker Compose 编排模版及 ESP32 接入范例。
+
+---
+
+## 1. 目录结构与持久化规划
+
+统一在 `/opt/all-in-one` 目录下组织工程文件：
+
+```text
+/opt/all-in-one/
+├── docker-compose.yml       # 核心服务编排
+├── mosquitto/
+│   ├── config/
+│   │   └── mosquitto.conf   # MQTT 配置文件
+│   ├── data/
+│   └── log/
+├── homeassistant/           # HA 配置文件与数据库
+└── samba/                   # Samba 配置文件
+```
+
+---
+
+## 2. Docker Compose 全栈编排文件
+
+### `docker-compose.yml`
+```yaml
+version: '3.8'
+
+services:
+  # 1. Eclipse Mosquitto MQTT Broker
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    environment:
+      - TZ=Asia/Shanghai
+
+  # 2. Home Assistant Core
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: homeassistant
+    restart: unless-stopped
+    privileged: true
+    network_mode: host
+    volumes:
+      - ./homeassistant:/config
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
+    environment:
+      - TZ=Asia/Shanghai
+
+  # 3. AList 轻量级个人网盘 / NAS 管理器
+  alist:
+    image: xhofe/alist:latest
+    container_name: alist
+    restart: unless-stopped
+    ports:
+      - "5244:5244"
+    volumes:
+      - ./alist:/opt/alist/data
+      - /mnt:/mnt  # 挂载外置 USB 移动硬盘
+    environment:
+      - PUID=0
+      - PGID=0
+      - UMASK=022
+      - TZ=Asia/Shanghai
+```
+
+---
+
+## 3. Mosquitto 极简匿名访问配置
+
+创建 `./mosquitto/config/mosquitto.conf`：
+```ini
+listener 1883
+allow_anonymous true
+persistence true
+persistence_location /mosquitto/data/
+log_dest file /mosquitto/log/mosquitto.log
+```
+
+---
+
+## 4. OpenWrt 旁路由（Macvlan 独立 IP 模式）
+
+泰山派为单千兆网口（`eth0`），通过 Docker Macvlan 驱动让 OpenWrt 获取与主路由同网段的独立 IP（例如 `192.168.31.2`）：
+
+```bash
+# 1. 开启网卡混杂模式
+ip link set eth0 promisc on
+
+# 2. 创建 Docker Macvlan 网络
+docker network create -d macvlan \
+  --subnet=192.168.31.0/24 \
+  --gateway=192.168.31.1 \
+  -o parent=eth0 macnet
+
+# 3. 启动 OpenWrt 容器
+docker run -d \
+  --name openwrt \
+  --restart always \
+  --network macnet \
+  --ip 192.168.31.2 \
+  --privileged \
+  sundaqiang/openwrt:latest /sbin/init
+```
+
+---
+
+## 5. ESP32 接入示例
+
+### 5.1 Arduino C++ 发布 MQTT
+```cpp
+#include <WiFi.h>
+#include <PubSubClient.h>
+
+const char* ssid = "YOUR_WIFI_SSID";
+const char* password = "YOUR_WIFI_PASSWORD";
+const char* mqtt_server = "192.168.31.32"; // 泰山派 IP
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+void setup() {
+  Serial.begin(115200);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) delay(500);
+  client.setServer(mqtt_server, 1883);
+}
+
+void loop() {
+  if (!client.connected()) {
+    client.connect("ESP32_LivingRoom");
+  }
+  client.loop();
+  
+  // 每 5 秒上报一次模拟温湿度
+  static unsigned long lastMsg = 0;
+  if (millis() - lastMsg > 5000) {
+    lastMsg = millis();
+    float temp = 25.5;
+    client.publish("home/livingroom/temperature", String(temp).c_str());
+  }
+}
+```
+
+### 5.2 ESPHome 极简直连 Home Assistant
+```yaml
+esphome:
+  name: esp32-node1
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+wifi:
+  ssid: "YOUR_WIFI_SSID"
+  password: "YOUR_WIFI_PASSWORD"
+
+api: # 开启 Native API，Home Assistant 局域网秒级自动发现
+
+sensor:
+  - platform: dht
+    pin: GPIO23
+    temperature:
+      name: "客厅温度"
+    humidity:
+      name: "客厅湿度"
+    model: DHT11
+    update_interval: 10s
+```
