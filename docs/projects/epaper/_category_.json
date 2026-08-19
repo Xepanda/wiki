@@ -1,0 +1,9 @@
+{
+  "label": "4.2寸多色墨水屏与高品质渲染",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "slug": "/category/projects/epaper",
+    "description": "基于 TuyaOpen 框架与 T5-Core (BK7258) 的 4.2 英寸三色 (SSD1683) 与四色 (GDEM042F86) 电子墨水屏高品质图像渲染、算法抖动、双控制器统一驱动与 CLI 交互全流程技术实战。"
+  }
+}

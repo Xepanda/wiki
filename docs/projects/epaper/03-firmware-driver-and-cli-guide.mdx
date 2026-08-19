@@ -1,0 +1,96 @@
+---
+sidebar_position: 3
+title: "03. TuyaOpen 嵌入式固件架构与串口 CLI 交互指南"
+slug: /projects/epaper/firmware-driver-and-cli-guide
+---
+
+# 03. TuyaOpen 嵌入式固件架构与串口 CLI 交互指南
+
+本项目的核心工程亮点在于**高内聚、自适应的双屏幕统一固件架构**。开发者无需维护两套独立的分支或重复编译固件，只需通过串口终端输入标准化命令，即可随时在 3 色和 4 色墨水屏之间无缝切换。
+
+---
+
+## 一、 嵌入式软件架构分层设计
+
+固件基于 **TuyaOpen IoT OS** 运行，分为 4 层架构：
+
+```
++-----------------------------------------------------------------------+
+|  应用与交互层 (app_epaper.c)                                           |
+|  - TAL CLI 串口命令解析引擎 (tal_cli)                                   |
+|  - 3 色 / 4 色 渲染管线分发与色块自检 (Palette Diagnostic)               |
+|  - 智慧 IoT 温湿度看板 UI 绘制 (Smart IoT Dashboard)                    |
++-----------------------------------------------------------------------+
+|  2D 图形绘制引擎 (epd_paint.c / epd_font.c)                             |
+|  - 点、线、矩形、圆、圆角卡片、ASCII 8x16 字体点阵                       |
+|  - 旋转变换 (0° / 90° / 180° / 270°) 与双平面内存管理                    |
++-----------------------------------------------------------------------+
+|  墨水屏控制器硬件抽象层 (epd_4in2b.c)                                   |
+|  - SSD1683 (三色 0x24/0x26 平面)                                      |
+|  - GDEM042F86 / SSD2683 (四色 2-bit 30KB 平面 & 12s 极速波形)          |
+|  - UC8176 (GDEW042 驱动兼容)                                          |
++-----------------------------------------------------------------------+
+|  底座硬件 I/O 驱动 (epd_io.c)                                          |
+|  - 高速 SPI 模拟 / 硬件 SPI 传输 (tkl_gpio / tkl_spi)                   |
+|  - 电荷泵波形握手等待与极性翻转处理 (epd_io_read_busy)                   |
++-----------------------------------------------------------------------+
+```
+
+---
+
+## 二、 串口 CLI 交互控制命令全表
+
+连接开发板串口 `COM14`（波特率 `115200`，终端勾选 `CR+LF`）：
+
+### 1. 🎨 四色墨水屏专属指令（GDEM042F86 / 黑白黄红）
+
+| 标准命令 | 常用别名 | 渲染效果与算法方案 |
+| :--- | :--- | :--- |
+| **`epd_4c_edge`** | `epd_4color`, `epd_4c_mode1` | **四色方案1（推荐）**：边缘保护 + 阿特金森抖动（金黄流光+赤红+黑白线条） |
+| **`epd_4c_solid`** | `epd_4c_mode2` | **四色方案2**：纯矢量色块平涂（0 噪点四色版画） |
+| **`epd_4c_diff`** | `epd_4c_mode3`, `epd_4c_kindle`| **四色方案3**：蛇形高精度误差扩散（连续平滑光影） |
+| **`epd_4c_fast`** | - | **四色 12 秒极速全屏刷新**（Fast Update Mode） |
+| **`epd_4c_test`** | - | **四色色阶自检测试**（依次全屏刷 黑 -> 黄 -> 红 -> 白） |
+| **`epd_4c_clear`** | - | **四色全屏刷白清屏** |
+
+### 2. 📷 三色墨水屏专属指令（SSD1683 / 黑白红）
+
+| 标准命令 | 常用别名 | 渲染效果与算法方案 |
+| :--- | :--- | :--- |
+| **`epd_3c_photo_kindle`**| `img1_kindle`, `img1_mode4` | **图1 (摄影·推荐)**：Kindle 级照片光影（Gamma 1.45 + 蛇形双向扩散） |
+| **`epd_3c_photo_gray16`**| `img1_gray16`, `img1_mode3` | **图1 (摄影)**：16 阶灰度空间抖动（Bayer Ordered Halftoning 网点） |
+| **`epd_3c_photo_edge`**  | `img1_edge`, `img1_mode1`   | **图1 (摄影)**：边缘保护线条风 |
+| **`epd_3c_photo_solid`** | `img1_solid`, `img1_mode2`  | **图1 (摄影)**：纯矢量色块平涂（0 噪点） |
+| **`epd_3c_art_edge`**    | `img2_edge`, `img2_mode1`   | **图2 (插画·推荐)**：边缘保护 + 阿特金森（极锐利黑线 + 纯红大日） |
+| **`epd_3c_art_kindle`**  | `img2_kindle`, `img2_mode4` | **图2 (插画)**：Kindle 级高动态光影 |
+| **`epd_3c_art_gray16`**  | `img2_gray16`, `img2_mode3` | **图2 (插画)**：16 阶灰度空间抖动 |
+| **`epd_3c_art_solid`**   | `img2_solid`, `img2_mode2`  | **图2 (插画)**：纯矢量色块平涂版画 |
+
+### 3. 🛠 系统与硬件诊断通用指令
+
+| CLI 命令 | 别名 | 功能说明 |
+| :--- | :--- | :--- |
+| **`help`** | `epd_help` | 终端打印完整三色与四色命令帮助列表 |
+| **`epd_test`** | - | 硬件通信与 SPI 全速读写诊断测试 |
+| **`epd_pins [次数]`** | - | 1Hz 频率交替输出 3.3V/0V，供万用表测引脚物理通断 |
+| **`epd_dash`** | `epd_3c_dash` | 渲染智慧 IoT 温湿度/系统状态仪表盘 UI |
+| **`epd_clear`** | `epd_3c_clear` | 三色屏幕全屏刷白清屏 |
+
+---
+
+## 三、 固件编译与烧录指南
+
+### 1. 激活开发环境并编译
+```bash
+# 激活 TuyaOpen 环境（Windows PowerShell）
+. D:\tuya_proj\TuyaOpen\export.ps1
+
+# 进入固件目录并执行构建
+cd source/embedded
+tos.py build
+```
+
+### 2. 烧录固件到 T5-Core
+```powershell
+& "D:\tuya_proj\TuyaOpen\tools\tyutool\tyutool_cli.exe" write -d t5 -f "source/embedded/.build/bin/ePaper-DEPG042-demo_QIO_1.0.0.bin" -p COM14
+```

@@ -1,0 +1,71 @@
+---
+sidebar_position: 4
+title: "04. 本地 Python 图像处理管线与嵌入式点阵生成工具"
+slug: /projects/epaper/python-image-pipeline-and-tools
+---
+
+# 04. 本地 Python 图像处理管线与嵌入式点阵生成工具
+
+为了让开发者能够方便地将任意自定义图片转换为适合墨水屏显示的高品质点阵，并在上板前于 PC 屏幕上 1:1 预览实际墨水颗粒效果，本项目在 `tools/` 目录下提供了一整套完整的 Python 算法转换工具集。
+
+---
+
+## 一、 Python 工具集架构概览
+
+| 脚本文件 | 核心功能 | 输入与输出 |
+| :--- | :--- | :--- |
+| **`tools/generate_4color_render.py`** | 四色墨水屏专属转换器（边缘保护、矢量平涂、误差扩散） | **输入**：RGB 原图<br/>**输出**：`source/embedded/include/epd_4color_data.h` + 3 张预览 PNG |
+| **`tools/generate_all_render_modes.py`**| 三色墨水屏全模式批量生成器（8 种组合模式） | **输入**：照片 & 插画原图<br/>**输出**：`source/embedded/include/epd_render_modes.h` |
+| **`tools/benchmark_all_algorithms.py`** | 1:1 像素级横向对比排版工具 | **输入**：多算法渲染产物<br/>**输出**：`output/` 综合评估对比图 |
+
+---
+
+## 二、 四色点阵压缩与 2-Bit 打包原理
+
+四色墨水屏单像素仅需 2 bits（`00=黑, 01=白, 10=黄, 11=红`）。Python 脚本在处理 $400 \times 300$ 图像时，每 4 个相邻像素被压缩打包为 1 个 `uint8` 字节：
+
+```python
+def pack_4color_2bit(quantized_image):
+    """
+    将 400x300 的四色量化图（像素值为 0, 1, 2, 3）
+    打包为 30,000 字节的 C 语言数组
+    """
+    h, w = quantized_image.shape
+    buffer = bytearray()
+    
+    for y in range(h):
+        for x in range(0, w, 4):
+            p0 = quantized_image[y, x] & 0x03
+            p1 = quantized_image[y, x + 1] & 0x03
+            p2 = quantized_image[y, x + 2] & 0x03
+            p3 = quantized_image[y, x + 3] & 0x03
+            
+            # 高位在前：p0 在 bit 7:6, p1 在 bit 5:4, p2 在 bit 3:2, p3 在 bit 1:0
+            byte_val = (p0 << 6) | (p1 << 4) | (p2 << 2) | p3
+            buffer.append(byte_val)
+            
+    return buffer
+```
+
+---
+
+## 三、 使用 Python 转换自定义图片
+
+### 1. 转换四色图片
+将您的高清画作保存为 `assets/my_artwork.jpg`，执行：
+```bash
+python tools/generate_4color_render.py
+```
+脚本将自动在 `output/` 输出 3 种算法的 1:1 预览图，并更新 `source/embedded/include/epd_4color_data.h`。
+
+### 2. 转换三色图片
+```bash
+python tools/generate_all_render_modes.py
+```
+脚本将自动生成 15KB 黑白 + 15KB 红色的双平面 C 语言数组。
+
+---
+
+## 四、 本地仿真与效果评估工作流
+
+通过在本地生成仿真 PNG，开发者可以在几秒钟内完成算法调参（如调整 Gamma 值、边缘提取阈值、色彩聚类距离），免去了每次修改都需要编译、烧录并等待 20 秒物理刷新的繁琐周期。
