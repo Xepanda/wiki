@@ -2,60 +2,157 @@
 sidebar_position: 3
 title: "03. TuyaOpen 嵌入式固件架构与串口 CLI 交互指南"
 slug: /projects/epaper/firmware-driver-and-cli-guide
+description: 深入讲解 TuyaOpen 平台下 4.2寸三色 (SSD1683) 与四色 (SSD2683) 双控制器自适应驱动实现、12秒极速刷新波形配置、电荷泵休眠管理与标准化串口 CLI 交互系统。
 ---
 
 # 03. TuyaOpen 嵌入式固件架构与串口 CLI 交互指南
 
-本项目的核心工程亮点在于**高内聚、自适应的双屏幕统一固件架构**。开发者无需维护两套独立的分支或重复编译固件，只需通过串口终端输入标准化命令，即可随时在 3 色和 4 色墨水屏之间无缝切换。
+在嵌入式固件工程实践中，如何用**同一套固件自适应驱动不同硬件型号的显示面板**，是衡量工业级代码质量的重要指标。
+
+本项目在 **TuyaOpen IoT OS** 框架下，基于 **T5-Core（BK7258）** 构建了全自适应的双屏幕驱动架构。开发者不仅无需频繁切换宏定义或重新编译烧录，还可以通过便捷的**串口交互命令行（TAL CLI）**，随时在 3 色和 4 色屏幕之间无缝下发显示指令、测试物理硬件并调优算法模式。
 
 ---
 
-## 一、 嵌入式软件架构分层设计
+## 一、 嵌入式固件模块分层架构
 
-固件基于 **TuyaOpen IoT OS** 运行，分为 4 层架构：
+固件源码位于工程的 `source/embedded/` 目录下，整体设计遵循模块解耦与 POSIX C 规范：
 
 ```
-+-----------------------------------------------------------------------+
-|  应用与交互层 (app_epaper.c)                                           |
-|  - TAL CLI 串口命令解析引擎 (tal_cli)                                   |
-|  - 3 色 / 4 色 渲染管线分发与色块自检 (Palette Diagnostic)               |
-|  - 智慧 IoT 温湿度看板 UI 绘制 (Smart IoT Dashboard)                    |
-+-----------------------------------------------------------------------+
-|  2D 图形绘制引擎 (epd_paint.c / epd_font.c)                             |
-|  - 点、线、矩形、圆、圆角卡片、ASCII 8x16 字体点阵                       |
-|  - 旋转变换 (0° / 90° / 180° / 270°) 与双平面内存管理                    |
-+-----------------------------------------------------------------------+
-|  墨水屏控制器硬件抽象层 (epd_4in2b.c)                                   |
-|  - SSD1683 (三色 0x24/0x26 平面)                                      |
-|  - GDEM042F86 / SSD2683 (四色 2-bit 30KB 平面 & 12s 极速波形)          |
-|  - UC8176 (GDEW042 驱动兼容)                                          |
-+-----------------------------------------------------------------------+
-|  底座硬件 I/O 驱动 (epd_io.c)                                          |
-|  - 高速 SPI 模拟 / 硬件 SPI 传输 (tkl_gpio / tkl_spi)                   |
-|  - 电荷泵波形握手等待与极性翻转处理 (epd_io_read_busy)                   |
-+-----------------------------------------------------------------------+
++-----------------------------------------------------------------------------------+
+| 1. 应用与 CLI 交互层 (app_epaper.c / tuya_app_main.c)                              |
+|   • 注册 TAL CLI 交互指令集 (s_epd_tal_cmds)                                       |
+|   • 统一调度 3色 (8 种模式) 与 4色 (4 种模式) 渲染管线                               |
+|   • 硬件引脚诊断自检与万用表 1Hz 脉冲测试引擎                                       |
++-----------------------------------------------------------------------------------+
+                                         |
+                                         v
++-----------------------------------------------------------------------------------+
+| 2. 2D 图形与矢量绘制引擎 (epd_paint.c / epd_paint.h / epd_font.c)                  |
+|   • 双显存平面管理 (Black Buffer: 15KB + Red Buffer: 15KB)                         |
+|   • 几何图元绘制：点、线、矩形、实心/空心圆、圆角卡片、ASCII 8x16 点阵英文字符库    |
+|   • 硬件显存旋转映射 (0° / 90° / 180° / 270°)                                       |
++-----------------------------------------------------------------------------------+
+                                         |
+                                         v
++-----------------------------------------------------------------------------------+
+| 3. 墨水屏控制器硬件抽象层 (epd_4in2b.c / epd_4in2b.h)                              |
+|   • EPD_TYPE_SSD1683: 三色 0x24(黑白)/0x26(红) 双平面模式                           |
+|   • EPD_TYPE_GDEM042F86: 四色 0x10 单平面 2-bit (30KB) 模式 + 12s 极速波形配置     |
+|   • EPD_TYPE_UC8176: GDEW042 驱动兼容模式                                          |
+|   • 自动极性翻转等待 (epd_wait_busy) 与深度休眠电荷泄放保护                         |
++-----------------------------------------------------------------------------------+
+                                         |
+                                         v
++-----------------------------------------------------------------------------------+
+| 4. 平台硬件 I/O 驱动层 (epd_io.c / epd_io.h)                                       |
+|   • Tuya TKL 抽象封装：tkl_gpio_init / tkl_gpio_write / tkl_gpio_read             |
+|   • 高速 SPI 模拟与硬件 SPI 自动分发 (tkl_spi)                                     |
++-----------------------------------------------------------------------------------+
 ```
 
 ---
 
-## 二、 串口 CLI 交互控制命令全表
+## 二、 核心控制器初始化与刷新序列推导
 
-连接开发板串口 `COM14`（波特率 `115200`，终端勾选 `CR+LF`）：
+### 1. SSD1683 (黑白红三色控制器) 底层序列
+```c
+/* 1. 软件复位与就绪 */
+epd_send_command(0x12); // SWRESET
+epd_io_delay_ms(20);
+epd_ssd1683_wait_busy();
 
-### 1. 🎨 四色墨水屏专属指令（GDEM042F86 / 黑白黄红）
+/* 2. 驱动输出控制与门数设置 (300 Gate) */
+epd_send_command(0x01); // Driver Output Control
+epd_send_data(0x2B);    // (300 - 1) & 0xFF
+epd_send_data(0x01);    // (300 - 1) >> 8
+epd_send_data(0x00);
 
-| 标准命令 | 常用别名 | 渲染效果与算法方案 |
+/* 3. 数据进入模式 (X 递增, Y 递增) */
+epd_send_command(0x11); // Data Entry Mode
+epd_send_data(0x03);
+
+/* 4. 写入双显存数据 */
+epd_send_command(0x24); // 写入 15,000 字节黑白显存
+for (int i = 0; i < 15000; i++) epd_send_data(s_epd_bw_buf[i]);
+
+epd_send_command(0x26); // 写入 15,000 字节红色显存
+for (int i = 0; i < 15000; i++) epd_send_data(s_epd_red_buf[i]);
+
+/* 5. 触发 Master Activation 全屏刷新波形 */
+epd_send_command(0x22); // Display Update Control
+epd_send_data(0xF7);
+epd_send_command(0x20); // Master Activation
+epd_ssd1683_wait_busy(); // 等待 BUSY 引脚变低 (约 18~20 秒)
+
+/* 6. 深度休眠关闭电荷泵 */
+epd_send_command(0x10); // Deep Sleep Mode
+epd_send_data(0x01);    // Mode 1 (保持 RAM 内容休眠)
+```
+
+---
+
+### 2. GDEM042F86 / SSD2683 (四色控制器) 与 12 秒极速刷新序列
+```c
+/* 1. 硬件复位与上电 */
+epd_reset();
+epd_send_command(0x04); // Power ON
+epd_gdem042f86_wait_busy();
+
+/* 2. 面板配置 (400x300 分辨率) */
+epd_send_command(0x00); // Panel Setting
+epd_send_data(0x0F);    // 400x300, LUT from OTP
+
+/* 3. 极速刷新模式波形注入 (Fast Update 12s Hack) */
+if (fast_mode) {
+    epd_send_command(0xEF); epd_send_data(0x00);
+    epd_send_command(0xF6); epd_send_data(0x00);
+    epd_send_command(0xE0); epd_send_data(0x02);
+    epd_send_command(0xE6); epd_send_data(0x00);
+}
+
+/* 4. 传输 30,000 字节单平面 2-bit 图像数据 */
+epd_send_command(0x10); // Data Start Transmission
+for (int i = 0; i < 30000; i++) {
+    epd_send_data(image_4color_buffer[i]);
+}
+
+/* 5. 触发刷新与 BUSY 握手 */
+epd_send_command(0x12); // Display Refresh
+epd_send_data(0x00);
+epd_io_delay_ms(100);   // 关键：预延时 100ms 避免过早检测 BUSY
+epd_gdem042f86_wait_busy(); // 等待 BUSY 引脚变高恢复空闲
+
+/* 6. 断电与深度休眠 */
+epd_send_command(0x02); // Power OFF
+epd_gdem042f86_wait_busy();
+epd_send_command(0x07); // Deep Sleep
+epd_send_data(0xA5);    // 0xA5 校验码完成休眠
+```
+
+---
+
+## 三、 标准化串口 CLI 交互命令参考字典
+
+连接开发板串口 `COM14`（波特率 `115200`，终端开启 `CR+LF`）：
+
+```text
+===============================================================================
+=== TuyaOpen Universal 4.2" E-Paper Dual-Controller Firmware (T5-Core) ===
+===============================================================================
+```
+
+### 1. 🎨 四色墨水屏专属命令（GDEM042F86 / 黑白黄红 4-Color）
+| 标准 CLI 命令 | 别名命令 | 算法方案与视觉特征 |
 | :--- | :--- | :--- |
-| **`epd_4c_edge`** | `epd_4color`, `epd_4c_mode1` | **四色方案1（推荐）**：边缘保护 + 阿特金森抖动（金黄流光+赤红+黑白线条） |
-| **`epd_4c_solid`** | `epd_4c_mode2` | **四色方案2**：纯矢量色块平涂（0 噪点四色版画） |
-| **`epd_4c_diff`** | `epd_4c_mode3`, `epd_4c_kindle`| **四色方案3**：蛇形高精度误差扩散（连续平滑光影） |
+| **`epd_4c_edge`** | `epd_4color`, `epd_4c_mode1` | **四色方案 1 (推荐)**：边缘保护 + 阿特金森抖动（金黄流光武士刀+赤红落日+黑白精细线条） |
+| **`epd_4c_solid`** | `epd_4c_mode2` | **四色方案 2**：纯矢量色块平涂（0 噪点四色波普/浮世绘版画） |
+| **`epd_4c_diff`** | `epd_4c_mode3`, `epd_4c_kindle`| **四色方案 3**：蛇形高精度误差扩散（连续平滑光影） |
 | **`epd_4c_fast`** | - | **四色 12 秒极速全屏刷新**（Fast Update Mode） |
-| **`epd_4c_test`** | - | **四色色阶自检测试**（依次全屏刷 黑 -> 黄 -> 红 -> 白） |
+| **`epd_4c_test`** | - | **四色色阶自检测试**（黑 -> 黄 -> 红 -> 白 轮流显示） |
 | **`epd_4c_clear`** | - | **四色全屏刷白清屏** |
 
-### 2. 📷 三色墨水屏专属指令（SSD1683 / 黑白红）
-
-| 标准命令 | 常用别名 | 渲染效果与算法方案 |
+### 2. 📷 三色墨水屏专属命令（SSD1683 / DEPG0420 / 黑白红 3-Color）
+| 标准 CLI 命令 | 别名命令 | 算法方案与视觉特征 |
 | :--- | :--- | :--- |
 | **`epd_3c_photo_kindle`**| `img1_kindle`, `img1_mode4` | **图1 (摄影·推荐)**：Kindle 级照片光影（Gamma 1.45 + 蛇形双向扩散） |
 | **`epd_3c_photo_gray16`**| `img1_gray16`, `img1_mode3` | **图1 (摄影)**：16 阶灰度空间抖动（Bayer Ordered Halftoning 网点） |
@@ -66,31 +163,32 @@ slug: /projects/epaper/firmware-driver-and-cli-guide
 | **`epd_3c_art_gray16`**  | `img2_gray16`, `img2_mode3` | **图2 (插画)**：16 阶灰度空间抖动 |
 | **`epd_3c_art_solid`**   | `img2_solid`, `img2_mode2`  | **图2 (插画)**：纯矢量色块平涂版画 |
 
-### 3. 🛠 系统与硬件诊断通用指令
-
+### 3. 🛠 系统与硬件诊断通用命令
 | CLI 命令 | 别名 | 功能说明 |
 | :--- | :--- | :--- |
-| **`help`** | `epd_help` | 终端打印完整三色与四色命令帮助列表 |
-| **`epd_test`** | - | 硬件通信与 SPI 全速读写诊断测试 |
-| **`epd_pins [次数]`** | - | 1Hz 频率交替输出 3.3V/0V，供万用表测引脚物理通断 |
+| **`help`** | `epd_help` | 终端打印完整三色与四色命令帮助菜单 |
+| **`epd_test`** | - | 硬件通信与 SPI 全速读写吞吐量测试 |
+| **`epd_pins 5`** | - | 1Hz 频率交替输出 3.3V/0V，供万用表测引脚物理通断 |
 | **`epd_dash`** | `epd_3c_dash` | 渲染智慧 IoT 温湿度/系统状态仪表盘 UI |
 | **`epd_clear`** | `epd_3c_clear` | 三色屏幕全屏刷白清屏 |
 
 ---
 
-## 三、 固件编译与烧录指南
+## 四、 固件编译与烧录流程
 
-### 1. 激活开发环境并编译
-```bash
-# 激活 TuyaOpen 环境（Windows PowerShell）
+### 1. 激活环境与编译
+```powershell
+# 激活 TuyaOpen SDK 环境
 . D:\tuya_proj\TuyaOpen\export.ps1
 
-# 进入固件目录并执行构建
-cd source/embedded
+# 进入嵌入式源码目录并启动 Ninja 编译
+cd D:\ePanda\ePaper\ePaper-DEPG042-demo\source\embedded
 tos.py build
 ```
+编译成功后，将在 `.build/bin/` 目录下生成 `ePaper-DEPG042-demo_QIO_1.0.0.bin`。
 
-### 2. 烧录固件到 T5-Core
+### 2. 烧录固件至 T5-Core
 ```powershell
-& "D:\tuya_proj\TuyaOpen\tools\tyutool\tyutool_cli.exe" write -d t5 -f "source/embedded/.build/bin/ePaper-DEPG042-demo_QIO_1.0.0.bin" -p COM14
+& "D:\tuya_proj\TuyaOpen\tools\tyutool\tyutool_cli.exe" write -d t5 -f "D:\ePanda\ePaper\ePaper-DEPG042-demo\source\embedded\.build\bin\ePaper-DEPG042-demo_QIO_1.0.0.bin" -p COM14
 ```
+烧录完成后开发板自动重启，并在 `COM14` 输出固件启动 Banner 欢迎界面。
