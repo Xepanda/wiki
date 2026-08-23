@@ -11,6 +11,7 @@
 ## 📖 知识库专题导航
 
 * **📟 [Kindle 墨水屏改造与嵌入式开发](docs/projects/kindle/)**：越狱、OTA阻断、Wi-Fi SSH 调优、LIPC/EIPS 底层接口与 6 大开发实战
+* **🖥️ [双笔记本单屏工作站](docs/projects/dual-laptop-kvm/)**：Deskflow 跨屏键鼠共享 + 信号偷取法一键切屏，附 DDC/CI 显示器控制深度踩坑实录
 * **☁️ [Cloudflare 开发者全栈实战](docs/projects/cloudflare/)**：Pages 静态托管、Workers 边缘函数、Tunnels 零公网穿透与 R2 零流量费存储
 * **🌿 [Git 版本控制与工作流](docs/git/)**：高效分支模型、Worktree 多分支并行、多账号 SSH 路由隔离
 * **🐧 [Linux 与 WSL 实战](docs/linux/)**：WSL2 深度调优、Shell 脚本与极客运维环境
