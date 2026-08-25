@@ -109,7 +109,6 @@ Windows 默认使用传统的 TCP 算法。以管理员身份将其升级为现�
 ```powershell
 # 切换 Internet 拥塞控制提供程序为 CUBIC
 netsh int tcp set supplemental template=internet congestionprovider=cubic
-netsh int tcp set supplemental template=internetfallback congestionprovider=cubic
 
 # 开启 ECN (Explicit Congestion Notification 显式拥塞通知)
 netsh int tcp set global ecncapability=enabled
