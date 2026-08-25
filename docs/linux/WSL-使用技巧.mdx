@@ -112,3 +112,23 @@ sudo hwclock -s
 
 WSL2 和 Windows 共享端口时可能出现冲突，优先在 WSL 启动服务再用 localhost 访问。
 
+### 虚拟磁盘只增不减？转换为稀疏磁盘 (Sparse VHDX)
+
+WSL2 默认磁盘删除文件后宿主机不会释放空间。通过稀疏磁盘模式可实现删除文件自动回收 SSD 空间：
+
+```powershell
+# 1. 安全关闭 WSL
+wsl --shutdown
+
+# 2. 转换为稀疏磁盘（自动缩容）
+wsl.exe --manage Ubuntu-24.04 --set-sparse true --allow-unsafe
+```
+
+### Windows Defender 排除 WSL 进程（极速防卡顿）
+
+以管理员身份运行 PowerShell 排除 WSL 关键进程：
+
+```powershell
+Add-MpPreference -ExclusionProcess "wsl.exe", "wslhost.exe", "vmmem.exe", "vmmemWSL.exe"
+```
+
