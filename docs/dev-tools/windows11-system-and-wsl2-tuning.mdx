@@ -103,6 +103,26 @@ Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" 
 Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "OneDrive" -Force -ErrorAction SilentlyContinue
 ```
 
+### 2.5 升级 TCP 网络拥塞控制算法为 CUBIC（网络吞吐与代理提速）
+Windows 默认使用传统的 TCP 算法。以管理员身份将其升级为现代 Linux/macOS 标配的 **CUBIC 算法**，显著增强网络高并发、高延迟与代理环境下的吞吐表现：
+
+```powershell
+# 切换 Internet 拥塞控制提供程序为 CUBIC
+netsh int tcp set supplemental template=internet congestionprovider=cubic
+netsh int tcp set supplemental template=internetfallback congestionprovider=cubic
+
+# 开启 ECN (Explicit Congestion Notification 显式拥塞通知)
+netsh int tcp set global ecncapability=enabled
+```
+
+### 2.6 禁用微软后台遥测诊断服务 (`DiagTrack`)
+停用微软用户体验与诊断跟踪服务（`Connected User Experiences and Telemetry`），阻断定期的后台事件扫描与云端数据回传：
+
+```powershell
+Stop-Service -Name "DiagTrack" -Force -ErrorAction SilentlyContinue
+Set-Service -Name "DiagTrack" -StartupType Disabled -ErrorAction SilentlyContinue
+```
+
 ---
 
 ## 3. WSL2 核心调优与内存控制
@@ -210,6 +230,26 @@ foreach ($f in $targetFolders) {
         }
     }
 }
+```
+
+### 5.3 固态硬盘主动 TRIM 优化 (Re-Trim)
+在大量删除文件或安装大型项目后，主动通知 NVMe/SSD 固态硬盘主控回收废弃闪存块，恢复全盘峰值写入性能：
+
+```powershell
+Optimize-Volume -DriveLetter C -ReTrim
+Optimize-Volume -DriveLetter D -ReTrim
+```
+
+### 5.4 开启 Windows 11 原生「存储感知 (Storage Sense)」自动化维护
+让 Windows 每周自动静默清理无用临时文件并清空超期回收站：
+
+```powershell
+$storageSenseKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy"
+if (-not (Test-Path $storageSenseKey)) { New-Item -Path $storageSenseKey -Force | Out-Null }
+Set-ItemProperty -Path $storageSenseKey -Name "01" -Value 1 -Type DWord -Force  # 启用存储感知
+Set-ItemProperty -Path $storageSenseKey -Name "04" -Value 7 -Type DWord -Force  # 每周自动运行
+Set-ItemProperty -Path $storageSenseKey -Name "32" -Value 1 -Type DWord -Force  # 自动清理临时文件
+Set-ItemProperty -Path $storageSenseKey -Name "08" -Value 30 -Type DWord -Force # 清理超 30 天回收站
 ```
 
 ---
