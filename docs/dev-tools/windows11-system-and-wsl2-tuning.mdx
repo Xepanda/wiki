@@ -108,28 +108,31 @@ Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" 
 ## 3. WSL2 核心调优与内存控制
 
 ### 3.1 生产级 `.wslconfig` 配置
-在 Windows 用户根目录 `~/.wslconfig` 中配置资源上限与现代化网络模式：
+在 Windows 用户根目录 `%USERPROFILE%\.wslconfig` 中配置资源上限、内核参数与现代化网络模式：
 
 ```ini
 [wsl2]
-# 针对 16GB 物理内存宿主机，建议分配 6GB~8GB
+# 针对 16GB 物理内存宿主机（AMD R7 5800H 8C/16T），建议分配 8GB + 10核
 memory=8GB
 processors=10
-swap=1GB
+# 建议配置 4GB Swap（配合 swappiness=10，平时不乱占，但能防止大型编译/模型推断时 OOM 崩溃）
+swap=4GB
 
-# 镜像网络模式（与 Windows 共享相同 IP 与 localhost）
+# 镜像网络模式（与 Windows 共享相同 IP 与 localhost，无需繁琐代理脚本）
 networkingMode=mirrored
 dnsTunneling=true
 autoProxy=true
 firewall=true
 guiApplications=true
 
-# Linux 内核参数微调（降低 Swap 倾斜度，优化缓存回收）
+# Linux 内核参数微调（降低 Swap 倾斜度，保持目录/inode 缓存）
 kernelCommandLine=sysctl.vm.swappiness=10 sysctl.vm.vfs_cache_pressure=50
 
 [experimental]
 # 自动内存回收（逐步释放 Linux 中未使用的缓存给宿主机）
 autoMemoryReclaim=gradual
+# 稀疏虚拟磁盘支持（删除文件时自动回缩宿主机 VHDX 占用空间）
+sparseVhd=true
 ```
 
 ### 3.2 物理内存秒级释放
@@ -139,6 +142,29 @@ autoMemoryReclaim=gradual
 wsl --shutdown
 ```
 即可瞬间收回全部占用的物理内存。
+
+### 3.3 WSL2 内部现代化极速工具链配置
+除了宿主机与 VM 资源调优外，在 WSL2 内部使用 Rust/Go 编写的现代化工具替换传统 CLI，能带来数量级的日常开发提速：
+
+| 场景 | 传统工具 | 现代化替代工具 | 优势与性能提升 |
+| :--- | :--- | :--- | :--- |
+| **Python 包管理** | `pip` / `poetry` | **`uv`** (Rust) | 依赖解析与轮子安装提速 **10~100 倍**，瞬时完成 |
+| **Node.js 包管理** | `npm` | **`pnpm`** | 硬链接共享机制，大幅节省 WSL2 ext4 磁盘 I/O |
+| **代码/文本全文搜索**| `grep` | **`rg` (ripgrep)** | 基于 Rust 并行正则引擎，数秒扫完千万行代码 |
+| **文件/目录极速查找**| `find` | **`fd`** | 智能忽略 `.gitignore`，速度远超传统 `find` |
+| **状态栏与资源监控** | 无 / 复杂脚本 | **`agy-hud`** | 专为 Antigravity 设计的超紧凑状态栏插件 |
+
+* **极速安装命令（WSL 终端）**：
+```bash
+# 安装 uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 安装 pnpm
+npm install -g pnpm
+
+# 安装 ripgrep & fd
+# Ubuntu 24.04 可直接下载静态 release 或通过包管理器安装
+```
 
 ---
 

@@ -58,39 +58,55 @@ cd /mnt/c/Users/ePanda/Desktop
 
 ## 性能优化
 
-### .wslconfig 配置
+### 生产级 .wslconfig 模板
 
-在 `C:\Users\<用户名>\.wslconfig` 中限制资源：
+在 Windows 用户根目录 `%USERPROFILE%\.wslconfig` 中配置资源上限、镜像网络与稀疏虚拟磁盘：
 
 ```ini
 [wsl2]
 memory=8GB
-processors=4
+processors=10
 swap=4GB
-localhostForwarding=true
+
+# 镜像网络模式（与 Windows 共享 localhost 与 IP）
+networkingMode=mirrored
+dnsTunneling=true
+autoProxy=true
+firewall=true
+guiApplications=true
+
+# 内核参数微调（降低 Swap 倾斜度，保持缓存）
+kernelCommandLine=sysctl.vm.swappiness=10 sysctl.vm.vfs_cache_pressure=50
+
+[experimental]
+autoMemoryReclaim=gradual
+sparseVhd=true
 ```
 
 ### 避免跨文件系统操作
 
-- **快**：WSL 内操作 `/home/epanda/` 下的文件
-- **慢**：频繁读写 `/mnt/c/` 下的 Windows 文件
+- **极快**：WSL 内操作 `/home/epanda/` 下的文件（ext4 原生虚拟磁盘）
+- **极慢**：频繁读写 `/mnt/c/`、`/mnt/d/` 下的 Windows 挂载盘（9P 协议性能衰减 5~10 倍）
 
 ## 网络与代理
 
-### WSL2 访问 Windows 代理
+### 现代化镜像网络（推荐）
 
+启用 `networkingMode=mirrored` + `autoProxy=true` 后：
+- **WSL2 与 Windows 完全共享 `localhost` 和局域网 IP**。
+- **自动继承 Windows 代理**：无需手动获取 `resolv.conf` IP，Windows 开启的科学上网代理/Clash 端口在 WSL2 中直接 `127.0.0.1:<端口>` 访问即可。
+
+### 传统 NAT 模式访问 Windows 代理（备用）
+
+若运行在传统 NAT 网络模式下：
 ```bash
 # 获取 Windows 宿主机 IP
 export HOST_IP=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}')
 
-# 设置代理（例如 Clash 在 Windows 上监听 7890）
+# 设置代理（例如代理软件在 Windows 监听 7890 且允许局域网连接）
 export http_proxy="http://$HOST_IP:7890"
 export https_proxy="http://$HOST_IP:7890"
 ```
-
-### Windows 访问 WSL 服务
-
-WSL2 默认通过 localhost 转发，Windows 直接访问 `localhost:<端口>` 即可。
 
 ## 常见问题
 
