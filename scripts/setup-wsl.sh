@@ -162,8 +162,6 @@ log_success "AI Agent 生态工具配置完成！"
 # ------------------------------------------------------------------------------
 log_step "[4/5] 🔌 正在配置嵌入式硬件与物联网套件..."
 
-npm install -g @tuya/tuyaopen-cli || true
-
 if ! command -v arduino-cli &>/dev/null; then
     curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR="$HOME/.local/bin" sh || true
 fi
