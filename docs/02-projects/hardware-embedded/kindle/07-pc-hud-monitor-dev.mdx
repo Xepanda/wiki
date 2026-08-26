@@ -1,0 +1,101 @@
+---
+slug: /projects/kindle/pc-hud-monitor-dev
+title: 路线 2 · PC 性能与 Git 工作流实时监控副屏
+sidebar_position: 7
+description: 使用 psutil 实时抓取 Windows CPU、内存、磁盘与 Git 仓库状态，通过 Wi-Fi SSH 秒级推送到 Kindle 墨水屏副屏。
+---
+
+# 路线 2 · PC 性能与 Git 工作流实时监控副屏
+
+> 💻 **工程源码路径**：[github.com/Xepanda/kindle-geek-toolbox/tree/master/pc_hud_monitor](https://github.com/Xepanda/kindle-geek-toolbox/tree/master/pc_hud_monitor)
+
+将 Kindle 摆在电脑显示器旁，作为一块**无频闪、不伤眼的 600×800 极客硬件监控副屏 (Workstation HUD)**。
+
+---
+
+## 1. 架构流转原理
+
+```mermaid
+flowchart LR
+    A["💻 Windows 主机 (psutil)"] -->|"实时采集 CPU/RAM/Disk/Git 状态"| B["🖼️ 600×800 竖版 HUD 生成器"]
+    B -->|"局域网 SSH / SCP 直连管道"| C["📟 Kindle 8 (192.168.31.74)"]
+    C -->|"eips -g 局部极速刷屏 (无白闪)"| D["🖋️ 珍珠墨水屏实时呈现"]
+
+    style A fill:#f4f2ec,stroke:#d97757,stroke-width:2px
+    style C fill:#f4f2ec,stroke:#d97757,stroke-width:2px
+    style D fill:#d97757,stroke:#c15f3d,stroke-width:2px,color:#fff
+```
+
+* **常亮保障**：在调试前执行 `ssh kindle "lipc-set-prop com.lab126.powerd preventScreenSaver 1"`，确保设备永不休眠；
+* **局部刷新**：使用 `eips -g /mnt/us/hud.png` 执行局部快速更新，避免全屏黑白闪烁，观感极为舒适。
+
+---
+
+## 2. 核心监控脚本 (`monitor_hud.py`)
+
+```python
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Kindle 8 (600x800 Portrait) PC Performance & Git Status HUD Monitor
+"""
+import os, sys, subprocess, psutil
+from datetime import datetime
+from PIL import Image, ImageDraw, ImageFont
+
+WIDTH, HEIGHT = 600, 800
+
+def get_git_status(repo_path="D:\\ePanda\\wiki"):
+    branch = subprocess.run(['git', 'branch', '--show-current'], cwd=repo_path, capture_output=True, text=True).stdout.strip()
+    status = subprocess.run(['git', 'status', '--porcelain'], cwd=repo_path, capture_output=True, text=True).stdout.strip()
+    return branch or 'master', len(status.splitlines()) if status else 0
+
+def render_hud(output_path='hud.png'):
+    img = Image.new('L', (WIDTH, HEIGHT), color=255)
+    draw = ImageDraw.Draw(img)
+    font_path = "C:\\Windows\\Fonts\\msyh.ttc"
+
+    cpu_percent = psutil.cpu_percent(interval=0.4)
+    ram = psutil.virtual_memory()
+    disk_c = psutil.disk_usage('C:\\')
+    disk_d = psutil.disk_usage('D:\\') if os.path.exists('D:\\') else disk_c
+    branch, git_mods = get_git_status()
+
+    # 1. 顶部 Header
+    draw.rectangle([(20, 15), (580, 65)], fill=240, outline=0, width=2)
+    draw.text((35, 26), "⚡ PC WORKSTATION HUD 监控屏", fill=0, font=ImageFont.truetype(font_path, 21))
+    draw.text((475, 28), datetime.now().strftime("%H:%M:%S"), fill=0, font=ImageFont.truetype(font_path, 16))
+
+    # 2. CPU & RAM 进度卡片 (竖版排版)
+    draw.rectangle([(20, 80), (580, 195)], fill=255, outline=0, width=2)
+    draw.text((35, 92), "💻 CPU 总体利用率", fill=60, font=ImageFont.truetype(font_path, 13))
+    draw.text((35, 115), f"{cpu_percent:.1f}%", fill=0, font=ImageFont.truetype(font_path, 32))
+
+    draw.rectangle([(20, 210), (580, 325)], fill=255, outline=0, width=2)
+    draw.text((35, 222), "🧠 物理内存 (RAM)", fill=60, font=ImageFont.truetype(font_path, 13))
+    draw.text((35, 245), f"{ram.percent:.1f}%", fill=0, font=ImageFont.truetype(font_path, 32))
+
+    # 3. 磁盘与 Git 状态
+    draw.rectangle([(20, 340), (580, 495)], fill=255, outline=0, width=2)
+    draw.text((35, 352), "💾 存储空间与 Git 状态 (PandaWiki)", fill=60, font=ImageFont.truetype(font_path, 13))
+    draw.text((35, 378), f"• C盘剩余: {disk_c.free/(1024**3):.1f} GB | D盘剩余: {disk_d.free/(1024**3):.1f} GB", fill=0, font=ImageFont.truetype(font_path, 16))
+    draw.text((35, 412), f"• 活跃分支: {branch}", fill=0, font=ImageFont.truetype(font_path, 16))
+    status_txt = "代码库整洁 (Clean)" if git_mods == 0 else f"⚠️ 有 {git_mods} 个文件待提交"
+    draw.text((35, 446), f"• 变更状态: {status_txt}", fill=0, font=ImageFont.truetype(font_path, 16))
+
+    img.save(output_path)
+    return output_path
+
+def push_to_kindle(img_path='hud.png'):
+    subprocess.run(f'scp -o ConnectTimeout=4 "{img_path}" root@kindle:/mnt/us/hud.png', shell=True)
+    subprocess.run('ssh kindle "eips -g /mnt/us/hud.png"', shell=True)
+
+if __name__ == '__main__':
+    push_to_kindle(render_hud())
+```
+
+---
+
+## 3. 实机验证
+
+运行 `python monitor_hud.py`，Kindle 屏幕瞬间完成局部刷新，清晰展示当前 PC 的 **CPU 负载进度条、RAM 利用率、磁盘空间与 Git 分支状态**（600×800 满屏呈现）！

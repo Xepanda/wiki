@@ -1,0 +1,11 @@
+{
+  "label": "ℹ️ 关于本站",
+  "position": 6,
+  "collapsible": true,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "slug": "/category/about",
+    "description": "PandaWiki 知识库的设计理念、Claude Editorial 视觉规范与 GitHub Pages 自动化部署体系。"
+  }
+}

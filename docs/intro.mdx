@@ -1,52 +1,133 @@
 ---
+title: 全站导览中枢
 sidebar_position: 0
 slug: /intro
+description: PandaWiki 全站架构内容地图与 7 大核心分区快速访问中枢。
 ---
 
-# PandaWiki · 个人技术知识库
+# 🏠 PandaWiki · 全站导览中枢
 
-> “思考、实践与技术沉淀。”
+> “思考、实践与技术沉淀 · 个人极客技术知识库”
 
-欢迎来到 **PandaWiki**。这里记录了日常开发、嵌入式系统改造、Git 工作流、Linux 运维与工具链中积累的深度指南与项目实战。
-
----
-
-## 📚 知识体系导航
-
-### ⚡ 专题精选 · 硬件改造与基础设施
-* **[4.2寸多色墨水屏与高品质渲染实战](/category/projects/epaper)**
-  * [01. 硬件架构、引脚映射与双控制器规范](/projects/epaper/hardware-architecture-and-pinout)
-  * [02. 电子墨水屏图像算法：边缘保护、16阶灰度与Kindle级光影](/projects/epaper/image-dithering-and-color-algorithms)
-  * [03. TuyaOpen 嵌入式固件架构与串口 CLI 交互指南](/projects/epaper/firmware-driver-and-cli-guide)
-  * [04. 本地 Python 图像处理管线与嵌入式点阵生成工具](/projects/epaper/python-image-pipeline-and-tools)
-* **[Kindle 墨水屏改造与嵌入式开发](/category/projects/kindle)**
-  * [01. Kindle 8 越狱、OTA阻断与 KUAL 部署实战](/projects/kindle/jailbreak-guide)
-  * [02. Wi-Fi 纯无线 SSH 开发环境搭建与网络排错](/projects/kindle/wifi-ssh-setup)
-  * [03. Kindle 8 硬件架构与底层控制手册](/projects/kindle/system-architecture)
-  * [04. Kindle 墨水屏 6 大开发方向与实战路线](/projects/kindle/dev-roadmap)
-  * [05. Kindle 极客开发资源汇总与社区链接](/projects/kindle/resources-and-community)
-  * [06. 路线 1 · 桌面智能万年历与天气看板实战](/projects/kindle/weather-dashboard-dev)
-  * [07. 路线 2 · PC 性能与 Git 工作流实时监控副屏](/projects/kindle/pc-hud-monitor-dev)
-  * [08. 路线 3 · AI 每日极客早报与电子墨水报纸实战](/projects/kindle/ai-newspaper-dev)
-  * [09. 路线 4 · 局域网免数据线无线传书与管理服务](/projects/kindle/wifi-transfer-service-dev)
-  * [10. 路线 5 · Kindle 本地脱机 KUAL 极客工具箱实战](/projects/kindle/kual-standalone-toolbox)
-  * [11. 专题 · 局域网免数据线传书全平台实战指南](/projects/kindle/wireless-ftp-user-guide)
-  * [12. 专题 · 极客开发常见问题与避坑指南 (FAQ)](/projects/kindle/troubleshooting-and-faq)
-* **[Cloudflare 开发者全栈实战](/category/projects/cloudflare)**
-  * [01. Cloudflare 开发者生态与极客实战全指南（Pages / Workers / Tunnels / R2）](/projects/cloudflare/cloudflare-ecosystem)
+欢迎来到 **PandaWiki**。本知识库采用「**顶层分类 + 纵向分层 + 横向领域拆分**」的四层架构，致力于提供低检索成本、高可复用性的技术沉淀。
 
 ---
 
-### 💻 工程与开发实践
-* **[Git 版本控制与进阶](/category/git)** — 高效分支模型、Worktree 多分支并行、多账号 SSH 路由隔离
-* **[Linux 与 WSL 实战](/category/linux)** — WSL2 深度调优、Shell 脚本与环境配置
-* **[开发工具与容器](/category/dev-tools)** — Docker 常用命令、容器网络与高效工具链
-* **[PandaWiki 构建指南](/category/pandawiki)** — Docusaurus 主题定制与 GitHub Pages 自动化部署
+## 🗺️ 全站内容架构地图
+
+```mermaid
+graph LR
+    PandaWiki["🐼 PandaWiki"] --> K["📚 知识体系<br/>(底层原理·系统认知)"]
+    PandaWiki --> P["🛠️ 项目实践<br/>(工程落地·踩坑排错)"]
+    PandaWiki --> R["🧰 工具资源<br/>(效率速查·配置指南)"]
+    PandaWiki --> J["📝 随笔日志<br/>(思考复盘·学习笔记)"]
+    PandaWiki --> A["ℹ️ 关于本站<br/>(设计规范·CI/CD架构)"]
+
+    K --> K1["操作系统与 Linux"]
+    K --> K2["版本控制与 Git"]
+    K --> K3["AI 与大模型"]
+
+    P --> P1["硬件与嵌入式改造"]
+    P --> P2["极客桌面工作流"]
+    P --> P3["云原生与边缘计算"]
+    P --> P4["系统调优实操教程"]
+
+    R --> R1["命令速查备忘单"]
+    R --> R2["终端与工具链"]
+
+    style PandaWiki fill:#f4f2ec,stroke:#d97757,stroke-width:2px
+    style K fill:#faf9f5,stroke:#d97757
+    style P fill:#faf9f5,stroke:#d97757
+    style R fill:#faf9f5,stroke:#d97757
+```
 
 ---
 
-## 🎨 设计哲学
-本知识库基于 **Docusaurus** 构建，UI 视觉深度参考了 **Anthropic Claude 的人文社科级 Editorial 极简设计系统**：
-* **色彩**：象牙白暖色画布（Ivory Cream `#FAF9F5`）与陶土砖红点缀（Terracotta `#D97757`）；
-* **排版**：古典衬线标题（`Newsreader` / `Georgia`）与现代无衬线正文（`Inter`）的呼吸感搭配；
-* **体验**：专注阅读、无冗余视觉干扰的沉浸式技术档案。
+## 📚 一级分区快速导航
+
+### 1. 📚 [知识体系 · 核心主库](/category/knowledge)
+可复用、结构化的核心技术知识点与基础原理：
+* **[操作系统与 Linux](/category/knowledge/os-and-linux)**：
+  * [Linux 基础配置与终端环境](/knowledge/linux-fundamentals)
+  * [WSL 日常运维与使用技巧](/knowledge/wsl-tips)
+* **[版本控制与 Git](/category/knowledge/version-control)**：
+  * [Git 核心工作流与多账号协作指南](/knowledge/git-workflow)
+  * [Git Worktree 多分支并行开发实战](/knowledge/git-worktree)
+* **[AI 与大模型](/category/knowledge/ai-and-agents)**：
+  * [AI 与 Agent 生态概览与知识地图](/knowledge/ai-and-agents)
+
+---
+
+### 2. 🛠️ [项目实践 · 落地工程](/category/projects)
+具体场景的落地应用、保姆级步骤与深度排错踩坑录：
+* **[硬件与嵌入式改造](/category/projects/hardware-embedded)**：
+  * **[Kindle 墨水屏改造专栏](/category/projects/kindle)**（12 篇全景指南）：
+    * [01. 越狱、OTA阻断与 KUAL 部署](/projects/kindle/jailbreak-guide)
+    * [02. Wi-Fi 纯无线 SSH 开发环境搭建](/projects/kindle/wifi-ssh-setup)
+    * [03. Kindle 8 硬件架构与底层控制手册](/projects/kindle/system-architecture)
+    * [04. 墨水屏 6 大开发方向与路线图](/projects/kindle/dev-roadmap)
+    * [05. 极客开发资源与开源社区汇总](/projects/kindle/resources-and-community)
+    * [06. 路线 1 · 桌面智能万年历与天气看板](/projects/kindle/weather-dashboard-dev)
+    * [07. 路线 2 · PC 性能与 Git 工作流实时监控副屏](/projects/kindle/pc-hud-monitor-dev)
+    * [08. 路线 3 · AI 每日极客早报与墨水报纸](/projects/kindle/ai-newspaper-dev)
+    * [09. 路线 4 · 局域网免数据线无线传书服务](/projects/kindle/wifi-transfer-service-dev)
+    * [10. 路线 5 · 本地脱机 KUAL 极客工具箱插件](/projects/kindle/kual-standalone-toolbox)
+    * [11. 专题 · 局域网免线推书全平台实战](/projects/kindle/wireless-ftp-user-guide)
+    * [12. 专题 · 极客开发常见避坑指南 (FAQ)](/projects/kindle/troubleshooting-and-faq)
+  * **[4.2寸多色墨水屏高品质渲染](/category/projects/epaper)**（4 篇）：
+    * [01. 硬件架构、引脚映射与双控制器规范](/projects/epaper/hardware-architecture-and-pinout)
+    * [02. 图像算法：边缘保护、16阶灰度与Kindle级光影](/projects/epaper/image-dithering-and-color-algorithms)
+    * [03. TuyaOpen 固件架构与串口 CLI 交互指南](/projects/epaper/firmware-driver-and-cli-guide)
+    * [04. Python 图像处理管线与嵌入式点阵工具](/projects/epaper/python-image-pipeline-and-tools)
+  * **[泰山派 All-in-One 智能中枢](/category/projects/taishanpi)**（6 篇）：
+    * [01. RK3566 硬件评估与架构设计](/projects/taishanpi/hardware-eval-and-architecture)
+    * [02. 系统底层优化与 ZRAM 内存压缩](/projects/taishanpi/base-environment-and-tuning)
+    * [03. Docker 容器底座与镜像加速](/projects/taishanpi/docker-and-proxy-acceleration)
+    * [04. OpenWrt 旁路由搭建与互通实战](/projects/taishanpi/openwrt-bypass-gateway-setup)
+    * [05. 全屋透明代理与分流配置](/projects/taishanpi/transparent-proxy-and-clients)
+    * [06. MQTT + Home Assistant + ESP32 联动](/projects/taishanpi/mqtt-homeassistant-esp32)
+* **[极客工作流与桌面改造](/category/projects/desktop-workflow)**：
+  * **[双笔记本单屏工作站](/category/projects/dual-laptop-kvm)**（4 篇）：
+    * [01. 整体架构与最终方案设计](/projects/dual-laptop-kvm/architecture-and-final-solution)
+    * [02. Deskflow 跨屏键鼠共享部署](/projects/dual-laptop-kvm/deskflow-cross-screen-setup)
+    * [03. 信号偷取法一键切屏实战](/projects/dual-laptop-kvm/signal-steal-hotkey-switching)
+    * [04. 踩坑实录与 DDC/CI 故障排除](/projects/dual-laptop-kvm/pitfalls-and-troubleshooting)
+* **[云原生与边缘计算](/category/projects/cloudflare)**：
+  * [Cloudflare 开发者生态与极客实战全指南](/projects/cloudflare/cloudflare-ecosystem)
+* **[实操与调优教程](/category/projects/tutorials)**：
+  * [全栈开发与 AI Agent 运行时环境配置手册](/projects/tutorials/linux-wsl-full-environment-setup)
+  * [Windows 11 宿主机与 WSL2 深度性能调优指南](/projects/tutorials/windows11-system-and-wsl2-tuning)
+
+---
+
+### 3. 🧰 [工具资源 · 效率速查](/category/resources)
+* **[命令与速查表](/category/resources/cheatsheets)**：
+  * [Docker 常用命令速查备忘单](/resources/docker-cheatsheet)
+* **[终端与工具链指南](/category/resources/toolchain)**：
+  * [Windows Terminal + PowerShell 7 + Oh My Posh 现代化配置](/resources/windows-terminal-powershell-p10k)
+
+---
+
+### 4. 📝 [随笔日志 · 思考复盘](/category/journal)
+* [技术思考、架构选型复盘与学习笔记](/journal/tech-notes)
+
+---
+
+### 5. 📌 [归档与草稿 · 缓冲隔离](/category/archive)
+* [待写草稿箱 (Drafts)](/archive/drafts)
+* [历史归档 (Legacy)](/archive/legacy)
+
+---
+
+### 6. ℹ️ [关于本站 · 规范与设计](/category/about)
+* [关于 PandaWiki：初衷与架构](/about/welcome)
+* [PandaWiki 写作与图表规范 (Mermaid vs React)](/about/wiki-authoring-standards)
+* [Docusaurus + GitHub Pages CI/CD 自动化构建](/about/docusaurus-github-pages-cicd)
+
+---
+
+## 🎨 视觉设计哲学
+本知识库视觉体系深度参考 **Anthropic Claude Editorial 极简设计系统**：
+* **色彩基调**：象牙温润白（`#FAF9F5`）画布底色 + 陶土砖红（`#D97757`）核心点缀；
+* **排版系统**：古典衬线大标题（`Newsreader`）+ 现代无衬线正文（`Inter`）+ 极客等宽代码（`JetBrains Mono`）；
+* **图表优先**：原生集成 Mermaid 图表引擎，深浅色自适应。

@@ -1,0 +1,114 @@
+---
+slug: /knowledge/git-worktree
+title: Git Worktree 多分支并行开发实战
+sidebar_position: 2
+description: 深入解析 Git Worktree 机制，在同一本地仓库中免多重 Clone 并行检出多个分支与快速热修复。
+---
+
+# Git Worktree 多分支并行开发
+
+`git worktree` 让你在同一仓库中同时 checkout 多个分支到不同目录，无需 clone 多份代码。
+
+## 为什么需要 Worktree
+
+传统方式下切换分支会强制你暂存或提交当前改动，打断工作流。Worktree 让每个分支独立占用一个工作目录，互不干扰。
+
+**典型场景：**
+
+- 正在 `feature-a` 分支开发，突然需要修 `main` 分支的紧急 bug
+- 同时维护多个版本（如 v1.x 和 v2.x）
+- 对比两个分支的文件差异
+- CI/CD 中并行构建不同分支
+
+## 基本用法
+
+### 添加 Worktree
+
+```bash
+# 从当前分支创建一个新的 worktree
+git worktree add ../my-feature feature-branch
+
+# 创建新分支并同时建立 worktree
+git worktree add -b hotfix-urgent ../hotfix main
+```
+
+### 查看 Worktree 列表
+
+```bash
+git worktree list
+```
+
+输出示例：
+
+```
+/home/user/project          abc1234 [main]
+/home/user/my-feature       def5678 [feature-branch]
+/home/user/hotfix           ghi9012 [hotfix-urgent]
+```
+
+### 删除 Worktree
+
+```bash
+# 先删除目录，再清理引用
+rm -rf ../my-feature
+git worktree prune
+```
+
+或一步到位：
+
+```bash
+git worktree remove ../my-feature
+```
+
+## 高级技巧
+
+### 锁定 Worktree
+
+防止被意外清理（如正在 CI 构建中）：
+
+```bash
+git worktree lock ../my-feature --reason "CI build in progress"
+git worktree unlock ../my-feature
+```
+
+### 在 Worktree 间共享未提交改动
+
+Worktree 各自独立，但可以通过 `git stash` + 手动 apply，或用 `git diff > patch` 传递。
+
+### 稀疏检出
+
+只检出部分文件以节省空间：
+
+```bash
+git worktree add --no-checkout ../sparse main
+cd ../sparse
+git sparse-checkout init --cone
+git sparse-checkout set path/to/subdir
+git checkout
+```
+
+## 注意事项
+
+| 限制 | 说明 |
+|------|------|
+| 同一分支 | 同一个分支不能被两个 worktree 同时 checkout |
+| 子模块 | 每个 worktree 的子模块独立，需单独初始化 |
+| 磁盘空间 | 每个 worktree 共享 `.git` 对象库，但工作文件独立占用空间 |
+| 裸仓库 | worktree 必须在非裸仓库中创建 |
+
+## 对比 `git clone`
+
+| | git worktree | git clone |
+|---|---|---|
+| 磁盘占用 | 共享对象库，更省空间 | 完全独立，占用翻倍 |
+| 分支同步 | 自动感知所有分支 | 需要 fetch/pull |
+| 配置共享 | 共享 `.git/config` | 各自独立配置 |
+| 适用场景 | 同仓库多分支并行 | 完全独立的工作副本 |
+
+## 常见问题
+
+**Q: 删除 worktree 后 `git branch` 还能看到分支？**
+A: worktree 删除不等于分支删除。用 `git branch -d branch-name` 删除分支。
+
+**Q: 可以在 worktree 里 rebase 吗？**
+A: 可以，但不建议在主 worktree 和子 worktree 同时操作同一个分支历史，容易产生冲突。

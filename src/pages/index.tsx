@@ -67,46 +67,46 @@ export default function Home(): ReactNode {
           </div>
 
           <div className="claude-grid">
-            <Link className="claude-card" to="/category/projects/kindle">
+            <Link className="claude-card" to="/category/knowledge">
+              <span className="claude-card-icon">📚</span>
+              <Heading as="h3">核心知识体系</Heading>
+              <p>Linux 系统底层、Git 分支与 Worktree 工作流、AI 与 Agent 生态演进地图</p>
+              <div className="claude-card-arrow">查阅知识库 →</div>
+            </Link>
+
+            <Link className="claude-card" to="/category/projects/hardware-embedded">
               <span className="claude-card-icon">📟</span>
-              <Heading as="h3">Kindle 墨水屏改造</Heading>
-              <p>系统越狱、OTA 阻断、Wi-Fi SSH 调优、LIPC 总线与物联网看板实战</p>
-              <div className="claude-card-arrow">查阅专栏 →</div>
+              <Heading as="h3">硬件与嵌入式改造</Heading>
+              <p>Kindle 墨水屏看板、4.2寸多色屏抖动渲染算法、泰山派 All-in-One 智能网关</p>
+              <div className="claude-card-arrow">查阅硬件专题 →</div>
+            </Link>
+
+            <Link className="claude-card" to="/category/projects/desktop-workflow">
+              <span className="claude-card-icon">🖥️</span>
+              <Heading as="h3">极客桌面工作流</Heading>
+              <p>双笔记本单屏 KVM 方案、Deskflow 跨屏键鼠、DisplaySwitch 信号偷取切屏</p>
+              <div className="claude-card-arrow">查阅工作流 →</div>
             </Link>
 
             <Link className="claude-card" to="/category/projects/cloudflare">
               <span className="claude-card-icon">☁️</span>
-              <Heading as="h3">Cloudflare 开发者全栈</Heading>
-              <p>Pages 极速托管、Workers 边缘函数、Tunnels 零公网穿透与 R2 免流量费存储</p>
+              <Heading as="h3">云原生与边缘服务</Heading>
+              <p>Cloudflare Pages 静态托管、Workers 边缘函数、Tunnels 零公网穿透与 R2 存储</p>
               <div className="claude-card-arrow">查阅实战 →</div>
             </Link>
 
-            <Link className="claude-card" to="/category/git">
-              <span className="claude-card-icon">🌿</span>
-              <Heading as="h3">Git 版本控制与工作流</Heading>
-              <p>Git 使用技巧、Worktree 高效多分支并行开发、多账号 SSH 路由隔离</p>
-              <div className="claude-card-arrow">查阅指南 →</div>
-            </Link>
-
-            <Link className="claude-card" to="/category/linux">
-              <span className="claude-card-icon">🐧</span>
-              <Heading as="h3">Linux 与 WSL 实战</Heading>
-              <p>WSL2 高级调优、终端效率工具、Shell 脚本自动化与服务器运维环境</p>
-              <div className="claude-card-arrow">查阅笔记 →</div>
-            </Link>
-
-            <Link className="claude-card" to="/category/dev-tools">
-              <span className="claude-card-icon">🛠️</span>
-              <Heading as="h3">开发工具与容器化</Heading>
-              <p>Docker 常用命令与容器编排、Neovim/VS Code 效率配置、现代开发工具链</p>
+            <Link className="claude-card" to="/category/resources">
+              <span className="claude-card-icon">🧰</span>
+              <Heading as="h3">工具资源与速查</Heading>
+              <p>Docker 常用命令备忘单、Windows Terminal + Oh My Posh 终端美化与高效配置</p>
               <div className="claude-card-arrow">查阅速查 →</div>
             </Link>
 
-            <Link className="claude-card" to="/category/pandawiki">
-              <span className="claude-card-icon">📚</span>
-              <Heading as="h3">知识库构建与规范</Heading>
-              <p>Docusaurus 深度定制、Claude 主题设计系统、Mermaid 图表与 Agent 写作规范</p>
-              <div className="claude-card-arrow">查阅沉淀 →</div>
+            <Link className="claude-card" to="/about/welcome">
+              <span className="claude-card-icon">ℹ️</span>
+              <Heading as="h3">关于本站与设计规范</Heading>
+              <p>PandaWiki 建设初衷、Claude Editorial 设计哲学、Mermaid 图表规范与 CI/CD</p>
+              <div className="claude-card-arrow">了解本站 →</div>
             </Link>
           </div>
         </section>

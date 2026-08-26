@@ -1,9 +1,0 @@
-{
-  "label": "Cloudflare 开发者实战",
-  "position": 2,
-  "link": {
-    "type": "generated-index",
-    "slug": "/category/projects/cloudflare",
-    "description": "Cloudflare Pages 静态托管、Workers 边缘函数、Tunnels 免公网 IP 内网穿透与 R2 零流量费存储的极客全套玩法。"
-  }
-}

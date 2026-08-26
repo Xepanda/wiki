@@ -1,0 +1,9 @@
+{
+  "label": "版本控制与 Git",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "slug": "/category/knowledge/version-control",
+    "description": "Git 核心工作流、分支模型、Worktree 多分支并行开发与高级进阶。"
+  }
+}

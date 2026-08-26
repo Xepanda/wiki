@@ -8,15 +8,22 @@
 
 ---
 
-## 📖 知识库专题导航
+## 📖 知识库架构与导航
 
-* **📟 [Kindle 墨水屏改造与嵌入式开发](docs/projects/kindle/)**：越狱、OTA阻断、Wi-Fi SSH 调优、LIPC/EIPS 底层接口与 6 大开发实战
-* **🖥️ [双笔记本单屏工作站](docs/projects/dual-laptop-kvm/)**：Deskflow 跨屏键鼠共享 + 信号偷取法一键切屏，附 DDC/CI 显示器控制深度踩坑实录
-* **☁️ [Cloudflare 开发者全栈实战](docs/projects/cloudflare/)**：Pages 静态托管、Workers 边缘函数、Tunnels 零公网穿透与 R2 零流量费存储
-* **🌿 [Git 版本控制与工作流](docs/git/)**：高效分支模型、Worktree 多分支并行、多账号 SSH 路由隔离
-* **🐧 [Linux 与 WSL 实战](docs/linux/)**：WSL2 深度调优、Shell 脚本与极客运维环境
-* **🛠️ [开发工具与容器化](docs/dev-tools/)**：Docker 常用命令与容器编排、现代工具链
-* **📚 [知识库构建与部署](docs/pandawiki/)**：Docusaurus 主题定制、GitHub Pages 自动化 CI/CD 与 Agent 写作规范
+本知识库遵循「**顶层分类 + 纵向分层 + 横向领域拆分**」的四层架构，分为 5 大核心分区与 2 大缓冲分区：
+
+* **📚 [知识体系](docs/01-knowledge/)**：操作系统内核与 Linux、Git 版本控制高级工作流、AI 与 Agent 演进地图
+* **🛠️ [项目实践](docs/02-projects/)**：
+  * 📟 [Kindle 墨水屏改造专栏](docs/02-projects/hardware-embedded/kindle/)：越狱、Wi-Fi SSH、底层控制与 6 大开发方向
+  * 🎨 [4.2寸多色墨水屏高品质渲染](docs/02-projects/hardware-embedded/epaper/)：双控制器驱动、抖动渲染算法与 Python 管线
+  * 🏠 [泰山派 All-in-One 智能网关](docs/02-projects/hardware-embedded/taishanpi/)：RK3566 硬件评估、OpenWrt 旁路由与 MQTT/HA
+  * 🖥️ [双笔记本单屏工作站](docs/02-projects/desktop-workflow/dual-laptop-kvm/)：Deskflow 跨屏键鼠 + DisplaySwitch 信号偷取
+  * ☁️ [Cloudflare 开发者全栈实战](docs/02-projects/cloud-and-edge/)：Pages / Workers / Tunnels / R2 边缘服务
+  * ⚡ [系统调优与环境实操](docs/02-projects/practical-tutorials/)：生产级 WSL2 环境自动化迁移与 Win11 极限调优
+* **🧰 [工具资源](docs/03-resources/)**：Docker 常用命令备忘单、Windows Terminal + Oh My Posh 现代化配置
+* **📝 [随笔日志](docs/04-journal/)**：技术思考、架构选型复盘与学习随笔
+* **📌 [归档与草稿](docs/05-archive/)**：待写草稿箱与历史旧方案归档隔离区
+* **ℹ️ [关于本站](docs/06-about/)**：PandaWiki 介绍、Claude Editorial 设计哲学、写作规范与 GitHub Actions 自动部署
 
 ---
 
@@ -30,7 +37,7 @@
 ### 🤖 AI Agent 写作规范（Skills）
 知识库包含为 AI 智能体打造的专属 Skill 指南，定义了图表选型、设计准则与结构要求：
 * **Skill 路径**：[`.agents/skills/wiki-authoring/SKILL.md`](.agents/skills/wiki-authoring/SKILL.md)
-* **在线文档**：[`docs/pandawiki/skills/wiki-authoring-standards.mdx`](docs/pandawiki/skills/wiki-authoring-standards.mdx)
+* **在线文档**：[`docs/06-about/wiki-authoring-standards.mdx`](docs/06-about/wiki-authoring-standards.mdx)
 
 ---
 

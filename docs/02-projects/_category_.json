@@ -1,0 +1,11 @@
+{
+  "label": "🛠️ 项目实践",
+  "position": 2,
+  "collapsible": true,
+  "collapsed": false,
+  "link": {
+    "type": "generated-index",
+    "slug": "/category/projects",
+    "description": "知识的落地应用与工程实战，包含完整项目库、保姆级教程与踩坑排错录。"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "label": "📌 归档与草稿",
+  "position": 5,
+  "collapsible": true,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "slug": "/category/archive",
+    "description": "缓冲隔离区：半成品草稿、待整理素材与历史旧方案归档，避免干扰主知识库。"
+  }
+}

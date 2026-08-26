@@ -14,7 +14,7 @@ description: PandaWiki 知识库写作与构建规范：定义 Mermaid 图表选
 当在 Claude Code、Anthravity 或其他智能体环境中操作本知识库时，请直接读取并遵循以下核心源文件：
 
 * 📘 **完整写作规范与决策矩阵**：[`.agent/skills/wiki-authoring/SKILL.md`](../../.agent/skills/wiki-authoring/SKILL.md)
-* 🌐 **在线公开规范文档**：[`docs/pandawiki/skills/wiki-authoring-standards.mdx`](../../docs/pandawiki/skills/wiki-authoring-standards.mdx)
+* 🌐 **在线公开规范文档**：[`docs/06-about/wiki-authoring-standards.mdx`](../../docs/06-about/wiki-authoring-standards.mdx)
 
 ---
 

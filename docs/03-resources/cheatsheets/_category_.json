@@ -1,0 +1,9 @@
+{
+  "label": "命令与速查表",
+  "position": 1,
+  "link": {
+    "type": "generated-index",
+    "slug": "/category/resources/cheatsheets",
+    "description": "高频开发命令、容器操作与运维速查备忘单。"
+  }
+}

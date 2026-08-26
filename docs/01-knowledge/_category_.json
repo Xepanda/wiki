@@ -1,0 +1,11 @@
+{
+  "label": "📚 知识体系",
+  "position": 1,
+  "collapsible": true,
+  "collapsed": false,
+  "link": {
+    "type": "generated-index",
+    "slug": "/category/knowledge",
+    "description": "存放结构化、可复用的核心技术知识体系与底层原理。"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "label": "终端与工具链指南",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "slug": "/category/resources/toolchain",
+    "description": "Windows Terminal、PowerShell 7、Oh My Posh 与现代终端效率工具配置。"
+  }
+}

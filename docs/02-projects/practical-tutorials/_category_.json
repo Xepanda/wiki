@@ -1,0 +1,9 @@
+{
+  "label": "实操与调优教程",
+  "position": 4,
+  "link": {
+    "type": "generated-index",
+    "slug": "/category/projects/tutorials",
+    "description": "Step-by-Step 保姆级开发环境搭建、自动化脚本与操作系统底层性能调优实操指南。"
+  }
+}

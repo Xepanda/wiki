@@ -1,0 +1,11 @@
+{
+  "label": "📝 随笔日志",
+  "position": 4,
+  "collapsible": true,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "slug": "/category/journal",
+    "description": "技术思考、学习复盘、读书笔记与非结构化杂记。"
+  }
+}

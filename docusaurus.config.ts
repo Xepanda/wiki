@@ -91,25 +91,35 @@ const config: Config = {
       logo: { alt: 'PandaWiki', src: 'img/logo.svg' },
       items: [
         {
+          to: '/intro',
+          label: '🏠 导览',
+          position: 'left',
+        },
+        {
           type: 'docSidebar',
           sidebarId: 'docsSidebar',
           position: 'left',
-          label: '全部文档',
+          label: '📚 全部文档',
         },
         {
-          to: '/category/projects/kindle',
-          label: 'Kindle 改造 ⚡',
+          to: '/category/knowledge',
+          label: '知识体系',
           position: 'left',
         },
         {
-          to: '/category/git',
-          label: 'Git 指南',
+          to: '/category/projects',
+          label: '项目实践 ⚡',
           position: 'left',
         },
         {
-          to: '/category/linux',
-          label: 'Linux & WSL',
+          to: '/category/resources',
+          label: '工具资源',
           position: 'left',
+        },
+        {
+          to: '/about/welcome',
+          label: '关于本站',
+          position: 'right',
         },
         {
           href: 'https://github.com/Xepanda/wiki',
@@ -122,19 +132,30 @@ const config: Config = {
       style: 'light',
       links: [
         {
-          title: '专题与项目',
+          title: '核心分区',
           items: [
-            { label: 'Kindle 墨水屏改造', to: '/category/projects/kindle' },
-            { label: 'Git 工作流与进阶', to: '/category/git' },
-            { label: 'Linux 与 WSL 实战', to: '/category/linux' },
-            { label: '开发工具速查', to: '/category/dev-tools' },
+            { label: '📚 知识体系', to: '/category/knowledge' },
+            { label: '🛠️ 项目实践', to: '/category/projects' },
+            { label: '🧰 工具资源', to: '/category/resources' },
+            { label: '📝 随笔日志', to: '/category/journal' },
           ],
         },
         {
-          title: '关于 & 链接',
+          title: '精选项目',
           items: [
+            { label: 'Kindle 墨水屏改造', to: '/category/projects/kindle' },
+            { label: '4.2寸多色墨水屏渲染', to: '/category/projects/epaper' },
+            { label: '泰山派 All-in-One 智能网关', to: '/category/projects/taishanpi' },
+            { label: '双笔记本单屏工作站', to: '/category/projects/dual-laptop-kvm' },
+            { label: 'Cloudflare 全栈开发', to: '/category/projects/cloudflare' },
+          ],
+        },
+        {
+          title: '关于 & 规范',
+          items: [
+            { label: '关于 PandaWiki', to: '/about/welcome' },
+            { label: '写作与图表规范', to: '/about/wiki-authoring-standards' },
             { label: 'GitHub 仓库', href: 'https://github.com/Xepanda/wiki' },
-            { label: 'Docusaurus 官方', href: 'https://docusaurus.io/' },
           ],
         },
       ],

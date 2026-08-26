@@ -1,0 +1,9 @@
+{
+  "label": "AI 与大模型",
+  "position": 3,
+  "link": {
+    "type": "generated-index",
+    "slug": "/category/knowledge/ai-and-agents",
+    "description": "大模型底层概念、Prompt 提示工程、AI Agent 智能体架构与实战沉淀。"
+  }
+}

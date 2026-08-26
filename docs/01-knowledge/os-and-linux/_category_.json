@@ -1,0 +1,9 @@
+{
+  "label": "操作系统与 Linux",
+  "position": 1,
+  "link": {
+    "type": "generated-index",
+    "slug": "/category/knowledge/os-and-linux",
+    "description": "Linux 基础原理、系统级优化、WSL 架构与开发环境沉淀。"
+  }
+}
