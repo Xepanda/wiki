@@ -104,42 +104,33 @@ wsl.exe --manage Ubuntu-24.04 --set-sparse true --allow-unsafe
 
 ---
 
-## 4. 全套自动化脚本一键部署流
+## 4. 全套自动化脚本一键部署流（单脚本搞定全部）
 
-无需逐行敲命令安装，Wiki 仓库内已内置全套模块化 Shell 脚本，一键执行即可：
+无需逐行敲命令安装，Wiki 仓库内已内置单一自闭环的 Shell 脚本 `setup-wsl.sh`，换新机只需一行命令即可全自动跑完：
 
-### 4.1 获取脚本并准备环境
-首次进入全新的 Ubuntu-24.04 终端，执行：
+### 4.1 方式 A：一行命令远程极速安装（推荐）
+在全新的 Ubuntu-24.04 终端中，直接复制以下命令回车：
 
+```bash
+curl -fsSL https://raw.githubusercontent.com/Xepanda/wiki/master/scripts/setup-wsl.sh | bash
+```
+
+### 4.2 方式 B：本地克隆运行
 ```bash
 # 1. 安装基础 git 并克隆 Wiki 仓库
 sudo apt update && sudo apt install -y git
 git clone https://github.com/Xepanda/wiki.git ~/wiki
 
-# 2. 进入脚本目录并配置环境变量
-cd ~/wiki/scripts
-cp env.template .env
-chmod +x *.sh
+# 2. 直接运行单一集成脚本
+bash ~/wiki/scripts/setup-wsl.sh
 ```
 
-### 4.2 编辑凭据配置 (`.env`)
-根据 `env.template` 填写常用的个人配置（如 Git 用户名、邮箱、常用的 API Token 等）：
-
-```bash
-nano .env
-```
-
-### 4.3 一键全自动串联执行 (`install-all.sh`)
-```bash
-./install-all.sh
-```
-
-该脚本将自动按顺序流水线执行：
-1. `01-base-system.sh`：配置 apt 快速源，安装 Zsh、Oh My Zsh、p10k 主题及 `ripgrep`/`fzf` 等现代 CLI 增强工具。
-2. `02-dev-runtimes.sh`：自动配置 `fnm` 安装最新 Node LTS、安装 `uv` 超高速 Python 管理器、配置 Rust/Go 编译链，并安装原生 Linux Docker。
-3. `03-ai-agent-ecosystem.sh`：配置 Google Antigravity CLI、Claude Code 及轻量级状态栏探针。
-4. `04-embedded-iot-tools.sh`：安装泰山派、Kindle 及 ESP32 相关的硬件烧录与串口工具。
-5. `05-skills-sync.sh`：同步自定义技能至 `~/.agents/skills/` 目录。
+该脚本内部自闭环包含 5 大流水线：
+1. **基础系统与终端**：安装编译依赖、Zsh、Oh My Zsh、自动建议与语法高亮插件，配置秒关机别名 `off`。
+2. **全栈开发运行时**：自动配置 `fnm` 安装最新 Node LTS (v22)、`uv` 极速 Python 工具、C/C++/Java 编译链。
+3. **AI Agent 生态**：全局安装 Claude Code、OpenAI Codex、配置极速状态栏探针。
+4. **嵌入式与 IoT 工具**：安装 Arduino CLI、TuyaOpen CLI 并配置串口权限。
+5. **Skills 同步**：自动生成 `~/.ai_env` 凭据模板并建立技能软链接。
 
 ---
 
