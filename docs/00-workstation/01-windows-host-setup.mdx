@@ -1,0 +1,255 @@
+---
+title: Windows 宿主机新机装机与极致配置手册
+sidebar_position: 1
+description: 换新电脑时的 Windows 宿主机必备软件清单、winget 一键安装、PowerShell 7 极简终端环境配置与系统级底层性能调优。
+slug: /workstation/windows-host-setup
+---
+
+# Windows 宿主机新机装机与极致配置手册
+
+本手册记录了在 Windows 宿主机上从“全新裸机”到“满血开发机”的标准化装机流水线。涵盖官方包管理器软件安装、极简单行终端搭建、核心配置参数以及底层硬件调度调优。
+
+---
+
+## 1. 宿主机装机全景流水线 (Workflow Matrix)
+
+```mermaid
+flowchart LR
+    S1["1. 官方包管理安装<br/>(winget 软件矩阵)"] --> S2["2. 终端美化与补全<br/>(PowerShell 7 + p10k)"]
+    S2 --> S3["3. 硬件性能释放<br/>(卓越性能 + 零动画)"]
+    S3 --> S4["4. 存储与网络提速<br/>(CUBIC + 白名单 + 存储感知)"]
+    S4 --> Done["🚀 宿主机满血就绪"]
+
+    style S1 fill:#f4f2ec,stroke:#d97757,stroke-width:2px
+    style S2 fill:#f4f2ec,stroke:#d97757,stroke-width:2px
+    style S3 fill:#f4f2ec,stroke:#d97757,stroke-width:2px
+    style S4 fill:#f4f2ec,stroke:#d97757,stroke-width:2px
+    style Done fill:#2e7d32,stroke:#1b5e20,stroke-width:2px,color:#fff
+```
+
+---
+
+## 2. 必备软件清单与 winget 一键安装
+
+Windows 11 自带官方包管理工具 `winget`，换新机无需去各个官网挨个下载安装包，直接在终端中批量安装：
+
+### 2.1 核心软件选型矩阵
+
+| 分类 | 软件名称 | winget ID | 说明 |
+| :--- | :--- | :--- | :--- |
+| **开发基建** | **Git** | `Git.Git` | 版本控制必备工具链 |
+| **开发基建** | **GitHub CLI** | `GitHub.cli` | 命令行一键授权与 PR/Run 管理 (`gh`) |
+| **开发基建** | **VS Code** | `Microsoft.VisualStudioCode` | 核心代码编辑器 |
+| **开发基建** | **Windows Terminal** | `Microsoft.WindowsTerminal` | 现代化多标签终端宿主 |
+| **开发基建** | **Node.js (LTS)** | `OpenJS.NodeJS.LTS` | 前端与全栈运行时环境 |
+| **核心字体** | **JetBrainsMono NF** | `DEVCOM.JetBrainsMonoNerdFont` | **必须安装**：打过补丁的编程字体，杜绝终端图标乱码 |
+| **日常浏览** | **Google Chrome** | `Google.Chrome` | 主力生产力浏览器 |
+| **多机协作** | **Deskflow** | `Deskflow.Deskflow` | 局域网跨多台电脑无缝共享一套键鼠 |
+| **网络代理** | **Clash Verge Rev** | `ClashVergeRev.ClashVergeRev` | 现代化内核代理客户端 |
+
+### 2.2 一键批量安装命令
+
+打开 PowerShell（推荐管理员身份），直接复制以下命令回车：
+
+```powershell
+# 1. 核心开发工具链
+winget install --id Git.Git -e --accept-source-agreements --accept-package-agreements
+winget install --id GitHub.cli -e --accept-source-agreements --accept-package-agreements
+winget install --id Microsoft.VisualStudioCode -e --accept-source-agreements --accept-package-agreements
+winget install --id Microsoft.WindowsTerminal -e --accept-source-agreements --accept-package-agreements
+winget install --id OpenJS.NodeJS.LTS -e --accept-source-agreements --accept-package-agreements
+
+# 2. 核心图标字体（解决终端问号/方块乱码）
+winget install --id DEVCOM.JetBrainsMonoNerdFont -e --accept-source-agreements --accept-package-agreements
+
+# 3. 效率与协作工具
+winget install --id Google.Chrome -e --accept-source-agreements --accept-package-agreements
+winget install --id Deskflow.Deskflow -e --accept-source-agreements --accept-package-agreements
+winget install --id ClashVergeRev.ClashVergeRev -e --accept-source-agreements --accept-package-agreements
+```
+
+---
+
+## 3. 终端与 Shell 核心配置（PowerShell 7 + p10k 极简单行）
+
+拒绝花哨厚重的色块背景，采用 **Powerlevel10k Lean（极简纯字符单行）** 风格，搭配类似 Zsh 的灰色历史建议预测。
+
+### 3.1 安装终端扩展模块
+在 PowerShell 中执行：
+
+```powershell
+# 安装 Oh My Posh 引擎
+winget install JanDeDobbeleer.OhMyPosh -s winget
+
+# 安装并更新 PSReadLine（实现历史预测与智能补全）
+Install-Module -Name PSReadLine -Scope CurrentUser -Force -SkipPublisherCheck
+```
+
+### 3.2 绑定终端字体
+打开 Windows Terminal ➔「设置」➔「默认值」➔「外观」➔ 将字体设置为 **`JetBrainsMono NF`**。
+
+### 3.3 部署单行 p10k Lean 主题配置
+在 `$HOME\Documents\PowerShell\powerlevel10k_lean.omp.json` 写入单行纯字符配置：
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/schema.json",
+  "blocks": [
+    {
+      "alignment": "left",
+      "segments": [
+        {
+          "foreground": "#3b82f6",
+          "properties": {
+            "folder_icon": " ",
+            "folder_separator_icon": "/",
+            "style": "full"
+          },
+          "style": "plain",
+          "template": " {{ .Path }} ",
+          "type": "path"
+        },
+        {
+          "foreground": "#10b981",
+          "foreground_templates": [
+            "{{ if or (.Working.Changed) (.Staging.Changed) }}#f59e0b{{ end }}",
+            "{{ if gt .Ahead 0 }}#8b5cf6{{ end }}",
+            "{{ if gt .Behind 0 }}#ef4444{{ end }}"
+          ],
+          "properties": {
+            "branch_icon": " ",
+            "commit_icon": " ",
+            "fetch_status": true
+          },
+          "style": "plain",
+          "template": "{{ .HEAD }}{{ if or (.Working.Changed) (.Staging.Changed) }}*{{ end }} ",
+          "type": "git"
+        },
+        {
+          "foreground": "#ec4899",
+          "style": "plain",
+          "template": "❯ ",
+          "type": "text"
+        }
+      ],
+      "type": "prompt"
+    },
+    {
+      "alignment": "right",
+      "segments": [
+        {
+          "foreground": "#6b7280",
+          "properties": {
+            "time_format": "15:04:05"
+          },
+          "style": "plain",
+          "template": "{{ .CurrentDate | date .Format }}",
+          "type": "time"
+        }
+      ],
+      "type": "prompt"
+    }
+  ],
+  "version": 3
+}
+```
+
+### 3.4 注入 `$PROFILE` 自动加载脚本
+在 `$PROFILE`（`~/Documents/PowerShell/Microsoft.PowerShell_profile.ps1`）中加入防报错与 Zsh 同款自动补全配置：
+
+```powershell
+# 1. 初始化 Oh My Posh
+oh-my-posh init pwsh --config "$HOME\Documents\PowerShell\powerlevel10k_lean.omp.json" | Invoke-Expression
+
+# 2. PSReadLine 历史建议与自动补全（带重定向保护）
+if (-not [Console]::IsOutputRedirected) {
+    Set-PSReadLineOption -PredictionSource History
+    Set-PSReadLineOption -PredictionViewStyle InlineView
+    Set-PSReadLineOption -Colors @{ InlinePrediction = "$([char]0x1b)[38;5;242m" }
+    Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete
+    Set-PSReadLineKeyHandler -Key UpArrow -Function HistorySearchBackward
+    Set-PSReadLineKeyHandler -Key DownArrow -Function HistorySearchForward
+}
+```
+
+---
+
+## 4. 必须执行的底层系统性能调优
+
+全新 Windows 系统开箱后默认偏向节能和保守调度，必须执行以下指令解锁满血算力：
+
+### 4.1 激活「卓越性能 (Ultimate Performance)」电源计划
+彻底消除 CPU 频繁升降频带来的微小卡顿：
+
+```powershell
+# 解锁并激活卓越性能方案
+powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61
+powercfg /setactive e9a42b02-d5df-448d-aa00-03f14749eb61
+```
+
+### 4.2 关闭 Mica 毛玻璃透明与窗口动画（UI 零延迟）
+```powershell
+# 关闭全局透明
+Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnableTransparency" -Value 0 -Type DWord -Force
+
+# 关闭窗口动画
+Set-ItemProperty -Path "HKCU:\Control Panel\Desktop\WindowMetrics" -Name "MinAnimate" -Value "0" -Force
+Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAnimations" -Value 0 -Type DWord -Force
+```
+
+### 4.3 Windows Defender 开发者排除白名单（编译与 Git 提速 2~5 倍）
+避免杀毒引擎实时扫描成千上万个 `node_modules` 与临时小文件（以管理员身份运行）：
+
+```powershell
+# 排除核心工作区与 Agent 缓存
+Add-MpPreference -ExclusionPath "D:\Projects", "$env:USERPROFILE\.gemini"
+
+# 排除 WSL 核心进程与虚拟磁盘目录
+Add-MpPreference -ExclusionProcess "wsl.exe", "wslhost.exe", "vmmem.exe", "vmmemWSL.exe"
+Get-ChildItem "$env:LOCALAPPDATA\Packages\CanonicalGroupLimited*" -Directory | ForEach-Object {
+    Add-MpPreference -ExclusionPath $_.FullName
+}
+```
+
+### 4.4 升级 TCP 拥塞控制算法为 CUBIC 与 ECN
+升级现代网络协议栈，改善高延迟环境与代理网络下的吞吐速度（管理员运行）：
+
+```powershell
+# 切换 Internet 模板为 CUBIC 算法
+netsh int tcp set supplemental template=internet congestionprovider=cubic
+
+# 开启 ECN 显式拥塞通知
+netsh int tcp set global ecncapability=enabled
+```
+
+### 4.5 禁用后台遥测与开机预加载
+```powershell
+# 禁用后台诊断跟踪服务
+Stop-Service -Name "DiagTrack" -Force -ErrorAction SilentlyContinue
+Set-Service -Name "DiagTrack" -StartupType Disabled -ErrorAction SilentlyContinue
+
+# 移除 Edge 浏览器与 OneDrive 开机后台常驻
+Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "MicrosoftEdgeAutoLaunch_*" -Force -ErrorAction SilentlyContinue
+Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "OneDrive" -Force -ErrorAction SilentlyContinue
+```
+
+### 4.6 开启存储感知每周自动清理
+```powershell
+$storageSenseKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy"
+if (-not (Test-Path $storageSenseKey)) { New-Item -Path $storageSenseKey -Force | Out-Null }
+Set-ItemProperty -Path $storageSenseKey -Name "01" -Value 1 -Type DWord -Force  # 启用存储感知
+Set-ItemProperty -Path $storageSenseKey -Name "04" -Value 7 -Type DWord -Force  # 每周自动运行
+Set-ItemProperty -Path $storageSenseKey -Name "32" -Value 1 -Type DWord -Force  # 自动清理临时文件
+Set-ItemProperty -Path $storageSenseKey -Name "08" -Value 30 -Type DWord -Force # 清空超30天回收站
+```
+
+---
+
+## 5. 项目工作区目录规划规范
+
+所有工程项目统一规划在高速 SSD 盘符：
+* **顶级工作区**：`D:\Projects\`
+* **个人知识库**：`D:\Projects\wiki\`
+* **日常项目规范**：`D:\Projects\<项目名>`
+
+> 严禁散落在桌面（Desktop）或 C 盘用户主目录下，确保开发数据与系统盘彻底隔离解耦。

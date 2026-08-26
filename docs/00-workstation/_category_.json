@@ -1,0 +1,11 @@
+{
+  "label": "💻 新机装机与环境初始化",
+  "position": 1,
+  "collapsible": true,
+  "collapsed": false,
+  "link": {
+    "type": "generated-index",
+    "slug": "/category/workstation-bootstrap",
+    "description": "换新电脑零痛点指南：从 Windows 宿主机必备软件清单与底层性能调优，到 WSL2 极速开发栈与 AI Agent 生态一键复现。"
+  }
+}

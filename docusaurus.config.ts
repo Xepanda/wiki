@@ -96,6 +96,11 @@ const config: Config = {
           position: 'left',
         },
         {
+          to: '/category/workstation-bootstrap',
+          label: '💻 新机装机',
+          position: 'left',
+        },
+        {
           type: 'docSidebar',
           sidebarId: 'docsSidebar',
           position: 'left',
