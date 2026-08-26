@@ -41,7 +41,34 @@ fi
 mkdir -p "$HOME/.claude/skills"
 mkdir -p "$HOME/.codex/skills"
 
-# 4. 配置 Claude Code (~/.claude/settings.json)
+# 4. 创建轻量级极速状态栏脚本 (~/.claude/statusline-command.sh)
+cat << 'EOF' > "$HOME/.claude/statusline-command.sh"
+#!/usr/bin/env bash
+# Claude Code statusLine command (PS1 + Model + Context usage)
+input=$(cat)
+user=$(whoami)
+host=$(hostname -s)
+cwd=$(echo "$input" | jq -r '.cwd // empty')
+[ -z "$cwd" ] && cwd=$(pwd)
+cwd="${cwd/#$HOME/~}"
+
+model=$(echo "$input" | jq -r '.model.display_name // empty')
+used=$(echo "$input" | jq -r '.context_window.used_percentage // empty')
+
+ps1_part=$(printf '\033[01;32m%s@%s\033[00m:\033[01;34m%s\033[00m' "$user" "$host" "$cwd")
+session_part=""
+[ -n "$model" ] && session_part="$model"
+[ -n "$used" ] && session_part="$session_part ctx:$(printf '%.0f' "$used")%"
+
+if [ -n "$session_part" ]; then
+    printf '%s  |  %s' "$ps1_part" "$session_part"
+else
+    printf '%s' "$ps1_part"
+fi
+EOF
+chmod +x "$HOME/.claude/statusline-command.sh"
+
+# 5. 配置 Claude Code (~/.claude/settings.json)
 log_info ">>> 2. 写入 Claude Code 核心配置 (~/.claude/settings.json)..."
 cat << 'EOF' > "$HOME/.claude/settings.json"
 {
@@ -100,7 +127,7 @@ cat << 'EOF' > "$HOME/.claude/settings.json"
   },
   "statusLine": {
     "type": "command",
-    "command": "cols=$(stty size </dev/tty 2>/dev/null | awk '{print $2}'); export COLUMNS=$(( ${cols:-120} > 4 ? ${cols:-120} - 4 : 1 )); plugin_dir=$(ls -1d \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}\"/plugins/cache/*/claude-hud/*/ 2>/dev/null | sort -V | tail -1); exec node \"${plugin_dir}dist/index.js\""
+    "command": "bash ~/.claude/statusline-command.sh"
   },
   "enabledPlugins": {
     "clangd-lsp@claude-plugins-official": true,
