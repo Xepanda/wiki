@@ -1,0 +1,264 @@
+---
+slug: /projects/taishanpi/nas-storage-samba-alist
+title: 泰山派轻量级私有 NAS 搭建实战：1TB 外置存储、Samba 局域网共享与 AList 全平台云盘部署
+sidebar_position: 7
+---
+
+# 泰山派轻量级私有 NAS 搭建实战：1TB 外置存储、Samba 局域网共享与 AList 全平台云盘部署
+
+在泰山派 All-in-One 架构中，除了软路由、智能家居网关（MQTT/Home Assistant）之外，**家庭私有轻量级 NAS** 是一项极其高频的核心需求。
+
+本文记录基于立创·泰山派（RK3566 2+16G）外接 1TB 移动硬盘，解决机械硬盘起动供电物理瓶颈、实现 NTFS 磁盘高可用自动挂载、部署原生 Samba 局域网共享与 AList 私有云盘，并打通局域网 mDNS 免 IP 免端口域名访问（`http://nas.local`）的完整落地全过程。
+
+---
+
+## 1. 硬件拓扑与供电踩坑实录
+
+### 1.1 存储与网络连接拓扑
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ ⚡ 外部独立供电适配器 (5V 3A / 独立电源)                    │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ (独立供电，避免主板限流)
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 🔌 泰山派专用独立供电扩展底板 (Power Expansion Board)       │
+│    └──── USB 口 ───> 💾 东芝 1TB 机械移动硬盘 (TOSHIBA)      │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ (只走数据通信，零掉盘)
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 🥧 立创·泰山派 RK3566 (Armbian Linux, 192.168.31.32)         │
+│   ├── [驱动层] ntfs-3g 挂载至 /mnt/nas_disk                 │
+│   ├── [文件共享] Samba (TCP 445) ──> Windows 映射 Y: 盘     │
+│   ├── [私有云盘] AList 容器 (HTTP 80/5244) ──> Web/手机访问 │
+│   └── [域名广播] Avahi mDNS (UDP 5353) ──> nas.local 广播   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 1.2 机械硬盘核心硬件陷阱：为什么不能直接插主板 USB？
+在单板电脑（SBC）上外接 2.5 寸机械移动硬盘时，最容易遇到**“设备灯狂闪、系统无限掉盘重连（报错 `error -71`）”**的现象：
+
+* **冷启动瞬间冲击电流**：机械硬盘在静止状态加速到 5400 RPM 的 0.2 秒内，马达线圈峰值电流会瞬间窜升至 **`1.2A ~ 1.5A`**。
+* **主板硬件限流芯片拦截**：泰山派主板的 USB 2.0 Type-A 接口遵循国际 USB 规范，板载串联了一颗高侧过流保护芯片，硬件阈值锁死在 **`0.8A ~ 1.0A`**。
+* **输入大电源无用论**：即便在外部输入 12V 诱骗板或 65W PD 充电器，经过主板 USB 接口输出端时依然会被限流芯片卡死并拉低电压，导致硬盘欠压复位（Brown-out Reset）。
+* **终极解法**：必须使用**带独立电源输入的扩展板**，或者使用**双头 USB 辅助供电线（Y型线）**，让马达直接从外部独立充电头取电，彻底绕开主板限流芯片。
+
+---
+
+## 2. 存储层识别与开机自动挂载固化
+
+### 2.1 安装 NTFS 读写支持
+Armbian 默认可能未安装 NTFS 用户态驱动，首先安装 `ntfs-3g`：
+```bash
+apt-get update -qq && apt-get install -y ntfs-3g
+```
+
+### 2.2 磁盘识别与手动挂载测试
+插入带独立供电的 1TB 移动硬盘后，查看块设备：
+```bash
+lsblk -f
+```
+系统准确识别到东芝 1TB 硬盘的分区节点 `/dev/sda1`（NTFS 文件系统，容量 932G）。
+
+创建挂载目录并测试挂载：
+```bash
+mkdir -p /mnt/nas_disk
+mount -t ntfs-3g -o rw,big_writes /dev/sda1 /mnt/nas_disk
+df -h /mnt/nas_disk
+```
+
+### 2.3 配置开机自动挂载（添加 `nofail` 防卡死保护）
+获取分区的唯一硬件 UUID：
+```bash
+blkid /dev/sda1
+# 输出示例: UUID="80200D0A200D093C" TYPE="ntfs"
+```
+
+编辑 `/etc/fstab`，将挂载项持久化。务必添加 **`nofail`** 参数，确保后续即使拔下硬盘开机，系统也绝不会因找不到挂载点而卡死在救援模式：
+```ini
+# /etc/fstab 追加：
+UUID=80200D0A200D093C /mnt/nas_disk ntfs-3g defaults,big_writes,nofail,uid=0,gid=0,umask=000 0 0
+```
+
+---
+
+## 3. Samba 局域网文件共享服务部署
+
+Samba（SMB 协议）是家庭内网各设备（Windows / Mac / Android / iOS / 电视盒子）原生互联的黄金标准。
+
+### 3.1 极简高性能配置
+相比 Docker 容器，原生 Samba 服务在 Debian/Armbian 上内存占用**不足 15MB**，性能损耗为 0。
+
+安装并配置 Samba：
+```bash
+apt-get install -y samba
+```
+
+覆盖配置 `/etc/samba/smb.conf`：
+```ini
+[global]
+   workgroup = WORKGROUP
+   server string = TaiShanPi NAS
+   security = user
+   map to guest = Bad User
+   log file = /var/log/samba/%m.log
+   max log size = 1000
+   load printers = no
+   printing = bsd
+   printcap name = /dev/null
+   disable spoolss = yes
+   # TCP 性能调优
+   socket options = TCP_NODELAY IPTOS_LOWDELAY SO_RCVBUF=65536 SO_SNDBUF=65536
+   read raw = yes
+   write raw = yes
+
+[NAS]
+   comment = 1TB Toshiba Mobile Hard Drive
+   path = /mnt/nas_disk
+   browseable = yes
+   writable = yes
+   guest ok = yes
+   read only = no
+   create mask = 0777
+   directory mask = 0777
+   force user = root
+```
+
+### 3.2 创建访问账号并重启服务
+```bash
+# 添加用户并设置密码 (这里设为 1234)
+printf "1234\n1234\n" | smbpasswd -a root
+
+# 重启并设置开机自启
+systemctl restart smbd nmbd
+systemctl enable smbd nmbd
+```
+
+### 3.3 Windows 电脑端永久挂载盘符
+在 Windows 电脑的 PowerShell 中执行如下命令，直接将共享目录映射为本地 **`Y:` 盘**：
+```powershell
+net use Y: \\192.168.31.32\NAS /user:root 1234 /persistent:yes
+```
+挂载成功后，打开 Windows“此电脑”，`Y:` 盘会像本地硬盘一样显示，支持满速拖拽与读写。
+
+---
+
+## 4. AList 私有云盘与 WebDAV 部署
+
+AList 能够将本地硬盘和全网各大网盘（阿里云盘、百度网盘、115、夸克等）聚合在同一个 Web 界面中，并将其转为标准的 **WebDAV** 协议流。
+
+### 4.1 Docker 容器一键启动
+规划数据目录，并将 **80 端口** 与 **5244 端口** 双向映射，同时将 `/mnt/nas_disk` 挂载进容器：
+
+```bash
+mkdir -p /opt/all-in-one/alist/data
+
+docker run -d \
+  --name alist \
+  --restart always \
+  -p 80:5244 \
+  -p 5244:5244 \
+  -v /opt/all-in-one/alist/data:/opt/alist/data \
+  -v /mnt/nas_disk:/mnt/nas_disk \
+  -e PUID=0 -e PGID=0 -e UMASK=022 \
+  xhofe/alist:latest
+```
+
+### 4.2 设置管理员账号与密码
+容器初始化完成后，重置默认管理员密码为 `123456`：
+```bash
+docker exec alist ./alist admin set 123456
+```
+
+### 4.3 自动化挂载本地 1TB 移动硬盘
+AList 底层采用 SQLite 存储配置。可通过 Python 脚本直接向 `/opt/all-in-one/alist/data/data.db` 注入本地存储配置并开启访客免密浏览：
+
+```python
+import sqlite3, json, datetime
+
+conn = sqlite3.connect("/opt/all-in-one/alist/data/data.db")
+c = conn.cursor()
+
+# 1. 挂载本地硬盘
+addition = json.dumps({
+    "root_folder_path": "/mnt/nas_disk",
+    "show_hidden": False,
+    "mkdir_perm": "777",
+    "recycle_bin_path": "delete_directly"
+})
+now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+c.execute("""
+    INSERT INTO x_storages (
+        mount_path, [order], driver, cache_expiration, status,
+        addition, remark, modified, disabled, web_proxy, webdav_policy
+    ) VALUES (
+        '/1TB-东芝移动硬盘', 0, 'Local', 30, 'work',
+        ?, '1TB Toshiba HDD', ?, 0, 0, 'native_proxy'
+    )
+""", (addition, now))
+
+# 2. 开启访客免密浏览权限 (在局域网内开箱即用)
+c.execute("UPDATE x_users SET disabled = 0, permission = 268435455 WHERE username = 'guest'")
+
+conn.commit()
+conn.close()
+```
+写入完成后重启容器：`docker restart alist`。
+
+---
+
+## 5. 局域网无感域名系统 (mDNS) 改造
+
+为了彻底告别难记的 IP 地址（`192.168.31.32`）和非标准端口号（`:5244`），采用 **mDNS（组播 DNS / 零配置网络）** 广播技术。
+
+### 5.1 部署 Avahi 服务
+在泰山派上安装并启动 `avahi-daemon`：
+```bash
+apt-get install -y avahi-daemon avahi-utils
+hostnamectl set-hostname nas
+avahi-set-host-name nas
+systemctl enable avahi-daemon && systemctl restart avahi-daemon
+```
+
+### 5.2 全平台零配置极简访问指南
+
+现代操作系统（Windows 10/11、macOS、iOS、Android 12+）均原生内置 mDNS 解析协议，只要连接到同一家庭 Wi-Fi：
+
+| 设备类型 | 访问入口 | 使用说明 |
+| :--- | :--- | :--- |
+| **手机 / iPad / PC 网页端** | **`http://nas.local`** | **免输端口、免输 IP、访客免密秒开**。可“添加到手机主屏幕”作为 App 使用。 |
+| **Kindle 墨水屏 (KOReader)** | **`http://nas.local/dav`** | 填入用户名 `admin` / 密码 `123456`，直接无线浏览下载 1TB 盘里的所有电子书。 |
+| **电视盒子 / Infuse / Kodi** | **`http://nas.local/dav`** | 挂载 WebDAV 资源库，自动刮削 4K 蓝光影视海报墙，免下载在线点播。 |
+| **Windows 文件管理器** | **`Y:\`** 或 **`\\nas.local\NAS`** | 永久本地驱动器盘符，直接高速复制粘贴大文件。 |
+
+---
+
+## 6. 系统资源开销与维护速查
+
+### 6.1 运行时轻量化实测
+泰山派在承载完整 Samba + AList + 1TB 外置硬盘常驻挂载的情况下：
+* **CPU 负载**：日常空闲占用 `< 1%`；
+* **内存开销**：Samba (`~12MB`) + AList 容器 (`~35MB`) $\approx$ **47MB**；
+* **系统整体空闲**：可用内存维持在 **1.5GB+**，整机运行功耗仅 **2.2W ~ 3.1W**，核心待机温度稳定在 **38°C**。
+
+### 6.2 常用管理命令速查
+
+```bash
+# 检查外置硬盘健康与容量
+df -h /mnt/nas_disk
+lsblk -f
+
+# 管理 Samba 服务
+systemctl status smbd
+systemctl restart smbd
+
+# 管理 AList 容器
+docker restart alist
+docker logs -f alist
+
+# 查看 mDNS 局域网广播状态
+systemctl status avahi-daemon
+avahi-resolve -n nas.local
+```
