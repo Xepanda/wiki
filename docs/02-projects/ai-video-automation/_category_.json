@@ -1,0 +1,9 @@
+{
+  "label": "🎬 AI 视频与自动化工坊",
+  "position": 5,
+  "link": {
+    "type": "generated-index",
+    "slug": "/category/projects/ai-video-automation",
+    "description": "基于 Remotion 与大模型的多媒体程序化生成、编程教学动画与视频自动化流水线实战。"
+  }
+}
