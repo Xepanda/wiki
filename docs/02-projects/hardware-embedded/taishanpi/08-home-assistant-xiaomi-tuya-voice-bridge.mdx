@@ -99,35 +99,89 @@ docker run -d \
 
 ---
 
-## 5. 小爱音箱控制涂鸦设备核心自动化配置
+## 5. 小爱音箱跨生态语音控制与实战调优
 
-在 HA 的 `/config/automations.yaml` 或网页端【自动化与场景】中添加如下规则模板：
+### 5.1 涂鸦 OEM 贴牌硬件（如鹊起智能）救砖与公版迁移秘籍
+部分涂鸦 OEM 设备（如鹊起智能万能遥控器）由于出厂固件注入了专属 ProductKey，导致在公版【智能生活】App 中无法“自动搜索”被发现，且官方扫码报错 `E0020003`。
 
-### 示例：小爱语音指令触发涂鸦吸顶灯
+**解决方案（底层的 AP 热点慢闪救砖法）**：
+1. **进入 AP 慢闪模式**：长按设备按键 5 秒进入快闪模式，**松开后紧接着再次长按 5 秒**，指示灯变为约 2~3 秒闪烁一次的慢闪状态；
+2. **热点配网**：打开【智能生活】App $\rightarrow$ 【添加设备】 $\rightarrow$ 选择【电工/万能遥控器】 $\rightarrow$ 右上角切换为 **【AP 模式】**；
+3. **连接热点**：手机连接设备发出的 `SmartLife-xxxx` 开放 Wi-Fi，手机 App 会直接绕过 OEM 品牌白名单限制，将其强制迁移并绑定到公版【智能生活】账号下。
+
+---
+
+### 5.2 毫秒级极速响应调优（告别 3 秒轮询延迟）
+
+* **传统被动轮询模式（较慢，约 2~4 秒）**：
+  小爱音箱识别完成后将对话保存至小米云端，HA 定期轮询云端对话日志，存在轮询周期等待。
+* **米家主动推送场景（极速秒开，< 0.3 秒 · 强烈推荐）**：
+  1. 在手机【米家 App】中新建手动执行场景：名称设为 `打开工作台`（动作设为小爱播报文本或执行空动作）；
+  2. 当你对小爱说“打开工作台”时，米家云端在 0.1 秒内通过 Event Webhook 主动向泰山派 HA 推送事件；
+  3. HA 收到推送后在 10ms 内触发涂鸦插座或万能遥控器开空调，整体延迟降至 **0.2~0.3 秒**，实现如丝般顺滑的秒开体验。
+
+---
+
+### 5.3 泰山派生产环境自动化规则配置
+
+在泰山派 `/opt/all-in-one/homeassistant/config/automations.yaml` 中的生产级配置：
+
 ```yaml
-- id: 'xiaoai_control_tuya_light'
-  alias: '小爱音箱语音控制涂鸦灯'
+- id: 'xiaoai_turn_on_workbench_socket'
+  alias: '小爱音箱语音联动：打开工作台插座'
+  description: '当小爱音箱触发 打开工作台 时，开启工作台智能插座'
   trigger:
+    - platform: state
+      entity_id: sensor.xiaomi_l05b_b558_conversation
     - platform: event
       event_type: xiaomi_miot.xiaoai_conversation
-      event_data:
-        # 当小爱音箱识别到包含特定开灯词汇时触发
-        query: '打开书房灯'
+  condition:
+    - condition: template
+      value_template: >-
+        {{
+          ('打开工作台' in (trigger.to_state.state | default(''))) or
+          ('开工作台' in (trigger.to_state.state | default(''))) or
+          ('打开插座' in (trigger.to_state.state | default(''))) or
+          ('打开工作台' in (trigger.event.data.query | default('')))
+        }}
   action:
-    # 1. 毫秒级点亮涂鸦设备
-    - service: light.turn_on
+    - service: switch.turn_on
       target:
-        entity_id: light.tuya_study_light
-    # 2. 调用小爱音箱执行自定义 TTS 播报反馈
-    - service: xiaomi_miot.intelligent_speaker
+        entity_id: switch.wifizhi_neng_cha_zuo_mc007_socket_1
+    - service: text.set_value
+      target:
+        entity_id: text.xiaomi_l05b_b558_play_text
       data:
-        entity_id: media_player.xiaoai_speaker_play
-        text: '好的，书房灯已打开'
-        execute: true
-        silent: true
-```
+        value: "好的，工作台已打开"
+  mode: restart
 
-> 💡 **防多嘴优化技巧**：在米家 App 的【小爱训练计划】中添加一条“打开书房灯”的自定义问答，响应动作设为【静默】，即可彻底消除小爱“未找到设备”的冗余语音提示。
+- id: 'xiaoai_turn_on_haier_ac'
+  alias: '小爱音箱语音联动：打开海尔空调'
+  description: '当小爱音箱触发 打开空调 时，通过涂鸦万能遥控器发射红外码'
+  trigger:
+    - platform: state
+      entity_id: sensor.xiaomi_l05b_b558_conversation
+    - platform: event
+      event_type: xiaomi_miot.xiaoai_conversation
+  condition:
+    - condition: template
+      value_template: >-
+        {{
+          ('打开空调' in (trigger.to_state.state | default(''))) or
+          ('开空调' in (trigger.to_state.state | default(''))) or
+          ('打开空调' in (trigger.event.data.query | default('')))
+        }}
+  action:
+    - service: scene.turn_on
+      target:
+        entity_id: scene.da_kai_kong_diao
+    - service: text.set_value
+      target:
+        entity_id: text.xiaomi_l05b_b558_play_text
+      data:
+        value: "好的，已为你打开空调"
+  mode: restart
+```
 
 ---
 
