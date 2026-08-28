@@ -1,0 +1,147 @@
+---
+slug: /projects/taishanpi/home-assistant-xiaomi-tuya-voice-bridge
+title: Home Assistant 智能家居中枢部署：打通米家、涂鸦/鹊起生态与小爱音箱语音控制实战
+sidebar_position: 8
+---
+
+# Home Assistant 智能家居中枢部署：打通米家、涂鸦/鹊起生态与小爱音箱语音控制实战
+
+在泰山派 All-in-One 架构中，**Home Assistant (HA)** 扮演着“全屋智能家庭中枢大脑”的核心角色。
+
+本文记录在泰山派 RK3566 开发板上部署 Home Assistant Core、预置 HACS、Xiaomi Miot Auto（米家核心插件）与 LocalTuya（涂鸦/鹊起本地直连插件），打破品牌壁垒，实现**使用小米小爱音箱 Play 语音直接调度全屋涂鸦/鹊起智能设备**的完整工程落地实战。
+
+---
+
+## 1. 全屋跨品牌智能互联拓扑
+
+```text
+       🗣️ 用户对小爱音箱发号施令："小爱同学，打开书房灯"
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 🔊 小米小爱音箱 Play (ASR 语音识别并上传米家云)              │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ (通过 Xiaomi Miot Auto 事件流监听)
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 🥧 立创·泰山派 Home Assistant (192.168.31.32:8123)          │
+│   ├── [米家核心] Xiaomi Miot Auto (接管小爱音箱与全屋米家设备)│
+│   ├── [涂鸦中枢] LocalTuya / Tuya (接管涂鸦与鹊起智能设备)  │
+│   └── [自动化引擎] 捕获小爱语音事件 ──> 毫秒级匹配涂鸦动作  │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ (局域网 AES-128 加密直发)
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 💡 涂鸦生态 / 鹊起智能设备 (Wi-Fi 插座、开关、智能吸顶灯)    │
+│    瞬间响应执行，端到端总延时 < 0.5 秒                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 2. 泰山派容器化极速部署实操
+
+### 2.1 目录规划与权限准备
+```bash
+mkdir -p /opt/all-in-one/homeassistant/config/custom_components
+```
+
+### 2.2 启动 Home Assistant 核心容器
+采用 `--net=host` 模式启动，确保局域网内的 mDNS、SSDP、小米 miio 广播协议能够原生直连穿透：
+
+```bash
+docker run -d \
+  --name homeassistant \
+  --restart=always \
+  --privileged \
+  --net=host \
+  -v /opt/all-in-one/homeassistant/config:/config \
+  -v /etc/localtime:/etc/localtime:ro \
+  -e TZ=Asia/Shanghai \
+  homeassistant/home-assistant:stable
+```
+
+---
+
+## 3. 三大核心插件预置与功能解析
+
+已预置到 `/config/custom_components/` 的核心组件矩阵：
+
+| 插件名称 | 目录路径 | 核心能力与解决的痛点 |
+| :--- | :--- | :--- |
+| **`xiaomi_miot`** | `custom_components/xiaomi_miot` | **国内米家生态神级插件（巴哥开发）**。支持全量导入小米设备、监听小爱音箱对话事件（`xiaomi_miot.xiaoai_conversation`）、实现小爱 TTS 自定义语音播报与虚拟设备桥接。 |
+| **`localtuya`** | `custom_components/localtuya` | **涂鸦/鹊起本地直连插件**。基于 LocalKey 走局域网 TCP 6668/6667 通信，断网可用、0 云端依赖、响应时延仅 20~50ms。 |
+| **`hacs`** | `custom_components/hacs` | **Home Assistant 社区商店**。方便后续一键安装更多主题、海报墙卡片与第三方集成。 |
+
+---
+
+## 4. 设备接入与配置指引
+
+### 4.1 访问控制台与初始化账号
+* **访问入口**：在浏览器打开 👉 **`http://nas.local:8123`**（或 `http://192.168.31.32:8123`）；
+* **创建管理员**：输入你的自定义用户名与密码，点击【创建账户】并选择家庭位置（系统时区已自动同步为 `Asia/Shanghai`）。
+
+### 4.2 接入小米米家设备与小爱音箱 Play
+1. 在 HA 左侧菜单点击 **【设置 (Settings)】 $\rightarrow$ 【设备与服务 (Devices & Services)】 $\rightarrow$ 【添加集成 (Add Integration)】**；
+2. 搜索并选择 **`Xiaomi Miot Auto`**；
+3. 选择 **【账号集成 (Cloud)】**，输入你的米家小米账号与密码：
+   * 筛选模式选择“包含所有设备”；
+   * 点击提交后，全屋所有米家插座、开关、传感器以及 **小爱音箱 Play** 将全量自动导入 HA！
+
+### 4.3 接入涂鸦智能与鹊起智能设备
+“鹊起智能”属于涂鸦（Tuya）智能硬件生态，接入方式完全统一：
+1. **云端模式（最简便）**：
+   * 在【添加集成】中搜索 **`Tuya`**；
+   * 打开手机上的【涂鸦智能】或【智能生活 (Smart Life)】App 扫码，全量鹊起与涂鸦设备自动同步进 HA。
+2. **本地直连模式（超低延迟·推荐）**：
+   * 在【添加集成】中搜索 **`LocalTuya`**；
+   * 输入设备的 IP 地址与 `Local Key`，实现纯局域网免云控秒级响应。
+
+---
+
+## 5. 小爱音箱控制涂鸦设备核心自动化配置
+
+在 HA 的 `/config/automations.yaml` 或网页端【自动化与场景】中添加如下规则模板：
+
+### 示例：小爱语音指令触发涂鸦吸顶灯
+```yaml
+- id: 'xiaoai_control_tuya_light'
+  alias: '小爱音箱语音控制涂鸦灯'
+  trigger:
+    - platform: event
+      event_type: xiaomi_miot.xiaoai_conversation
+      event_data:
+        # 当小爱音箱识别到包含特定开灯词汇时触发
+        query: '打开书房灯'
+  action:
+    # 1. 毫秒级点亮涂鸦设备
+    - service: light.turn_on
+      target:
+        entity_id: light.tuya_study_light
+    # 2. 调用小爱音箱执行自定义 TTS 播报反馈
+    - service: xiaomi_miot.intelligent_speaker
+      data:
+        entity_id: media_player.xiaoai_speaker_play
+        text: '好的，书房灯已打开'
+        execute: true
+        silent: true
+```
+
+> 💡 **防多嘴优化技巧**：在米家 App 的【小爱训练计划】中添加一条“打开书房灯”的自定义问答，响应动作设为【静默】，即可彻底消除小爱“未找到设备”的冗余语音提示。
+
+---
+
+## 6. 系统资源开销实测
+
+泰山派（RK3566 2+16G）在同时运行 **Samba 文件共享 + AList 聚合云盘 + Home Assistant 智能中枢** 的三合一满载状态下：
+
+```text
+               total        used        free      shared  buff/cache   available
+Mem:           1.9Gi       889Mi       206Mi        26Mi       1.1Gi       1.1Gi (可用 58%)
+
+CONTAINER ID   NAME            CPU %     MEM USAGE / LIMIT     MEM %
+683931f96673   homeassistant   2.48%     337.9MiB / 1.922GiB   17.17%
+f465d6701f34   alist           0.00%     77.78MiB / 1.922GiB    3.95%
+```
+* **内存结余**：系统可用内存稳定维持在 **`1.1 GB 以上`**；
+* **CPU 负载**：四核日常空闲调度占用 `< 3%`，系统完全轻载顺畅运行。
