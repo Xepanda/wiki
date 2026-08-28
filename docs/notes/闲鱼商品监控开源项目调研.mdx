@@ -1,0 +1,91 @@
+---
+title: 闲鱼商品监控开源项目调研
+date: 2026-08-28
+tags: [闲鱼, 监控, 开源, 爬虫]
+---
+
+# 闲鱼商品监控开源项目调研
+
+> 调研目的：寻找可用于监控闲鱼商品上架和价格变动的开源脚本/爬虫/自动化工具。
+
+## 一、结论概览
+
+GitHub 上**存在多个成熟的闲鱼商品监控脚本/项目**，核心能力均覆盖「关键词监控 + 价格监控 + 上新提醒」。其中最主流的是 `ai-goofish-monitor` 系列（原 `dingyufei615/ai-goofish-monitor`，现迁移至 `Usagi-org/ai-goofish-monitor`），它已被大量 fork 形成生态。但需注意：原仓库已于 2026-05-18 **主动 archived（封存）**，不再维护。
+
+## 二、主要项目清单
+
+### 1. Usagi-org/ai-goofish-monitor（原 dingyufei615/ai-goofish-monitor）
+- 仓库：https://github.com/Usagi-org/ai-goofish-monitor
+- Star 数：约 11.6K–14.2K
+- 最后更新：2026-05-18（合并安全补丁后 archived）
+- 核心功能：关键词监控、价格区间筛选、上新时间范围、省/市/区三级区域筛选、多任务并发、Cron 定时调度、AI 多模态分析（GPT-4o/Gemini）、多渠道通知（ntfy/企业微信/Bark/Telegram/Webhook）、成交识别、价格历史记录
+- 技术栈：Python + Playwright + FastAPI/Vue + SQLite；Docker 一键部署；需闲鱼登录态
+- 维护状态：已封存 / 停止维护
+- 坑与风险：依赖登录态 Cookie 需手动刷新；存在 CVE-2026-10044 文件读取漏洞（CVSS 7.5）；后续无官方修复
+
+### 2. howarddong711/goofish-tracker
+- 仓库：https://github.com/howarddong711/goofish-tracker
+- 核心功能：多关键词追踪、价格历史记录、成交识别（下架标记疑似成交）、24 小时无人值守、配置热更新
+- 技术栈：Python + Playwright + config.yaml；JSONL 存储
+- 坑与风险：无 Web UI、无推送通知，仅本地存储
+
+### 3. dikoweii/ai-goo-fish
+- 仓库：https://github.com/dikoweii/ai-goo-fish
+- 核心功能：关键词爬取 + AI 智能分析 + 邮件通知；Web 管理界面
+- 技术栈：Python + Playwright + FastAPI + SQLite + SMTP
+- 维护状态：个人 fork，维护不稳定
+
+### 4. FightingForWhat/idlefish_xianyu_spider-crawler-sender
+- 仓库：https://github.com/FightingForWhat/idlefish_xianyu_spider-crawler-sender
+- 核心功能：关键词监控、价格/地区筛选、钉钉推送、风控暂停/继续、黑名单
+- 技术栈：Python + Scrapy + MongoDB
+- 维护状态：作者已基本停止开发（弃坑倾向），不推荐
+
+### 5. LENKIN233/xianyu-monitor-skill
+- 仓库：https://github.com/LENKIN233/xianyu-monitor-skill
+- 核心功能：AI 原生对话式监控、关键词/价格/地区筛选、真实分页、商品去重、Cron 定时
+- 技术栈：Python + Playwright + 登录态 JSON；设计为 Claude Code / OpenClaw / Codex 的 Agent Skill
+- 坑与风险：依赖 AI Agent 宿主；登录态过期需重提
+
+### 6. lmt-ux/Xianyu-Product-Automated-Analysis-Assistant
+- 仓库：https://github.com/lmt-ux/Xianyu-Product-Automated-Analysis-Assistant
+- 核心功能：闲鱼爬虫 + 全网比价（什么值得买）+ DeepSeek AI 倒卖利润分析 + Excel 导出
+- 定位：偏选品分析，非纯监控
+
+### 7. hongfei8888/xianyushujujiankong（闲鱼爆品雷达）
+- 仓库：https://github.com/hongfei8888/xianyushujujiankong
+- 核心功能：商品/店铺数据采集、Excel 报表、SQLite 存储、定时采集
+- 定位：偏数据分析报表，非实时上新提醒
+
+## 三、技术栈共性
+
+| 维度 | 主流方案 |
+|------|----------|
+| 采集方式 | Playwright 浏览器自动化为主，少数用 Scrapy |
+| 登录 | 闲鱼扫码登录态 JSON（Chrome 扩展导出）持久化 |
+| 通知 | ntfy / 企业微信 / Bark / Telegram / 钉钉 / 邮件 |
+| 部署 | Docker 一键（内置 Chromium）或 Python 直接运行 |
+| AI 增强 | 多模态大模型（GPT-4o/Gemini/DeepSeek）做商品图文过滤 |
+
+## 四、类似二手平台监控参考
+
+- **goofish-client**（https://github.com/11273/goofish-client）：TypeScript 闲鱼非官方 Client 库，封装搜索/详情/收藏 API，可作自写监控底层 SDK（GPL-3.0）
+- 转转等二手平台无专门开源，通常用通用爬虫框架（Scrapy/Playwright）+ 定时任务 + 推送自行搭建
+
+## 五、综合评价与推荐
+
+| 项目 | 功能完整度 | 易用性 | 维护风险 | 推荐度 |
+|------|-----------|--------|---------|--------|
+| Usagi-org/ai-goofish-monitor | ★★★★★ | ★★★★★ | 高（已封存） | 首选（研究/自用） |
+| goofish-tracker | ★★★ | ★★★ | 中 | 轻量备选 |
+| ai-goo-fish (dikoweii) | ★★★★ | ★★★★ | 中 | 邮件通知需求备选 |
+| idlefish_xianyu_spider | ★★★ | ★★ | 高（弃坑倾向） | 不推荐 |
+| xianyu-monitor-skill | ★★★ | ★★ | 中 | Agent 用户可选 |
+
+**最值得使用**：`Usagi-org/ai-goofish-monitor`。功能最完整、部署最简单（Docker 一键）、社区最大（10K+ star）。
+
+**关键提醒**：
+1. 原仓库已 archived，闲鱼改版或 Playwright 大版本升级需自行 fork 修复。
+2. 已知 Windows 部署存在 CVE-2026-10044 文件读取漏洞，对外暴露 Web UI 时务必限制访问。
+3. 所有方案均依赖闲鱼登录态 Cookie，需定期手动重新提取；轮询间隔建议 ≥30 分钟降低封号风险。
+4. 若追求长期可维护性，可基于 goofish-client SDK 自行开发轻量监控。
