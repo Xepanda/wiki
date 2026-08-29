@@ -268,9 +268,12 @@ nmap -p 6668,6667 -sT 192.168.31.0/24 --open
         value: "好的，已为你打开空调"
   mode: restart
 
-- id: 'xiaoai_turn_off_haier_ac'
-  alias: '小爱音箱语音联动：关闭海尔空调'
-  description: '当小爱音箱触发 关闭空调 时，通过涂鸦万能遥控器发射红外码'
+# ==========================================
+# 3. 原生 Matter 卧室彩灯：动态精确数值亮度调节 (明确指定百分比)
+# ==========================================
+- id: 'xiaoai_exact_brightness_control'
+  alias: '小爱音箱语音联动：明确数值亮度调节'
+  description: '提取具体百分比数值（如 30%、50%、80%）精确设定 Matter 卧室灯亮度'
   trigger:
     - platform: state
       entity_id: sensor.xiaomi_l05b_b558_conversation
@@ -279,20 +282,198 @@ nmap -p 6668,6667 -sT 192.168.31.0/24 --open
   condition:
     - condition: template
       value_template: >-
-        {{
-          ('关闭空调' in (trigger.to_state.state | default(''))) or
-          ('关空调' in (trigger.to_state.state | default(''))) or
-          ('关闭空调' in (trigger.event.data.query | default('')))
-        }}
+        {% set text = trigger.to_state.state if trigger.platform == 'state' else (trigger.event.data.query if trigger.event is defined and trigger.event.data is defined else '') %}
+        {% set has_digit = text | regex_findall('[0-9]+') | length > 0 %}
+        {% set has_chinese_pct = '百分之' in text or '亮度' in text %}
+        {{ ('灯' in text or '卧室' in text or '房间' in text) and (has_digit or has_chinese_pct) and ('空调' not in text) and ('工作台' not in text) and ('插座' not in text) }}
   action:
-    - service: scene.turn_on
+    - service: light.turn_on
       target:
-        entity_id: scene.guan_bi_kong_diao
+        entity_id: light.wo_shi_wo_shi_deng
+      data:
+        brightness_pct: >-
+          {% set text = trigger.to_state.state if trigger.platform == 'state' else (trigger.event.data.query if trigger.event is defined and trigger.event.data is defined else '') %}
+          {% set digits = text | regex_findall('[0-9]+') %}
+          {% if digits | length > 0 %}
+            {% set pct = digits[0] | int %}
+          {% elif '百分之十' in text or ('十' in text and '百分' in text) %}{% set pct = 10 %}
+          {% elif '百分之二十' in text or ('二十' in text and '百分' in text) %}{% set pct = 20 %}
+          {% elif '百分之三十' in text or ('三十' in text and '百分' in text) %}{% set pct = 30 %}
+          {% elif '百分之四十' in text or ('四十' in text and '百分' in text) %}{% set pct = 40 %}
+          {% elif '百分之五十' in text or ('五十' in text and '百分' in text) %}{% set pct = 50 %}
+          {% elif '百分之六十' in text or ('六十' in text and '百分' in text) %}{% set pct = 60 %}
+          {% elif '百分之七十' in text or ('七十' in text and '百分' in text) %}{% set pct = 70 %}
+          {% elif '百分之八十' in text or ('八十' in text and '百分' in text) %}{% set pct = 80 %}
+          {% elif '百分之九十' in text or ('九十' in text and '百分' in text) %}{% set pct = 90 %}
+          {% elif '百分之百' in text %}{% set pct = 100 %}
+          {% else %}{% set pct = 50 %}
+          {% endif %}
+          {{ [1, [100, pct] | min] | max }}
     - service: text.set_value
       target:
         entity_id: text.xiaomi_l05b_b558_play_text
       data:
-        value: "好的，空调已为你关闭"
+        value: >-
+          {% set text = trigger.to_state.state if trigger.platform == 'state' else (trigger.event.data.query if trigger.event is defined and trigger.event.data is defined else '') %}
+          {% set digits = text | regex_findall('[0-9]+') %}
+          {% if digits | length > 0 %}
+            {% set pct = digits[0] | int %}
+          {% elif '百分之十' in text %}{% set pct = 10 %}
+          {% elif '百分之二十' in text %}{% set pct = 20 %}
+          {% elif '百分之三十' in text %}{% set pct = 30 %}
+          {% elif '百分之四十' in text %}{% set pct = 40 %}
+          {% elif '百分之五十' in text %}{% set pct = 50 %}
+          {% elif '百分之六十' in text %}{% set pct = 60 %}
+          {% elif '百分之七十' in text %}{% set pct = 70 %}
+          {% elif '百分之八十' in text %}{% set pct = 80 %}
+          {% elif '百分之九十' in text %}{% set pct = 90 %}
+          {% elif '百分之百' in text %}{% set pct = 100 %}
+          {% else %}{% set pct = 50 %}
+          {% endif %}
+          好的，已将卧室灯亮度调至 {{ [1, [100, pct] | min] | max }}%
+  mode: restart
+
+# ==========================================
+# 4. 原生 Matter 卧室彩灯：基础开关与智能模糊匹配
+# ==========================================
+- id: 'xiaoai_turn_on_bedroom_light'
+  alias: '小爱音箱语音联动：打开卧室Matter灯'
+  description: '当小爱音箱触发任何 开灯/开卧室灯 指令时，开启卧室原生 Matter RGBCW 灯'
+  trigger:
+    - platform: state
+      entity_id: sensor.xiaomi_l05b_b558_conversation
+    - platform: event
+      event_type: xiaomi_miot.xiaoai_conversation
+  condition:
+    - condition: template
+      value_template: >-
+        {% set text = trigger.to_state.state if trigger.platform == 'state' else (trigger.event.data.query if trigger.event is defined and trigger.event.data is defined else '') %}
+        {% set has_digit = text | regex_findall('[0-9]+') | length > 0 %}
+        {{ ('灯' in text or '卧室' in text or '房间' in text) and ('开' in text) and ('关' not in text) and ('暖' not in text) and ('白' not in text) and ('色' not in text) and ('亮' not in text) and (not has_digit) and ('空调' not in text) and ('工作台' not in text) and ('插座' not in text) }}
+  action:
+    - service: light.turn_on
+      target:
+        entity_id: light.wo_shi_wo_shi_deng
+    - service: text.set_value
+      target:
+        entity_id: text.xiaomi_l05b_b558_play_text
+      data:
+        value: "好的，卧室灯已打开"
+  mode: restart
+
+- id: 'xiaoai_turn_off_bedroom_light'
+  alias: '小爱音箱语音联动：关闭卧室Matter灯'
+  description: '当小爱音箱触发任何 关灯/关卧室灯 指令时，关闭卧室原生 Matter RGBCW 灯'
+  trigger:
+    - platform: state
+      entity_id: sensor.xiaomi_l05b_b558_conversation
+    - platform: event
+      event_type: xiaomi_miot.xiaoai_conversation
+  condition:
+    - condition: template
+      value_template: >-
+        {% set text = trigger.to_state.state if trigger.platform == 'state' else (trigger.event.data.query if trigger.event is defined and trigger.event.data is defined else '') %}
+        {{ ('灯' in text or '卧室' in text or '房间' in text) and ('关' in text) and ('空调' not in text) and ('工作台' not in text) and ('插座' not in text) }}
+  action:
+    - service: light.turn_off
+      target:
+        entity_id: light.wo_shi_wo_shi_deng
+    - service: text.set_value
+      target:
+        entity_id: text.xiaomi_l05b_b558_play_text
+      data:
+        value: "好的，卧室灯已关闭"
+  mode: restart
+
+# ==========================================
+# 5. 原生 Matter 卧室彩灯：色温调节 (暖光/冷光/白光)
+# ==========================================
+- id: 'xiaoai_color_temp_warm_light'
+  alias: '小爱音箱语音联动：卧室灯调成暖光'
+  trigger:
+    - platform: state
+      entity_id: sensor.xiaomi_l05b_b558_conversation
+    - platform: event
+      event_type: xiaomi_miot.xiaoai_conversation
+  condition:
+    - condition: template
+      value_template: >-
+        {% set text = trigger.to_state.state if trigger.platform == 'state' else (trigger.event.data.query if trigger.event is defined and trigger.event.data is defined else '') %}
+        {{ ('灯' in text or '卧室' in text) and ('暖光' in text or '暖色' in text or '黄光' in text or '温馨' in text) }}
+  action:
+    - service: light.turn_on
+      target:
+        entity_id: light.wo_shi_wo_shi_deng
+      data:
+        color_temp_kelvin: 2700
+    - service: text.set_value
+      target:
+        entity_id: text.xiaomi_l05b_b558_play_text
+      data:
+        value: "好的，已为你调成暖光"
+  mode: restart
+
+- id: 'xiaoai_color_temp_white_light'
+  alias: '小爱音箱语音联动：卧室灯调成冷白光'
+  trigger:
+    - platform: state
+      entity_id: sensor.xiaomi_l05b_b558_conversation
+    - platform: event
+      event_type: xiaomi_miot.xiaoai_conversation
+  condition:
+    - condition: template
+      value_template: >-
+        {% set text = trigger.to_state.state if trigger.platform == 'state' else (trigger.event.data.query if trigger.event is defined and trigger.event.data is defined else '') %}
+        {{ ('灯' in text or '卧室' in text) and ('白光' in text or '冷光' in text or '日光' in text or '正常光' in text) }}
+  action:
+    - service: light.turn_on
+      target:
+        entity_id: light.wo_shi_wo_shi_deng
+      data:
+        color_temp_kelvin: 5000
+    - service: text.set_value
+      target:
+        entity_id: text.xiaomi_l05b_b558_play_text
+      data:
+        value: "好的，已为你调成冷白光"
+  mode: restart
+
+# ==========================================
+# 6. 原生 Matter 卧室彩灯：1600万色调色 (红/绿/蓝/粉/紫/黄/橙)
+# ==========================================
+- id: 'xiaoai_rgb_color_control'
+  alias: '小爱音箱语音联动：卧室灯RGB变色'
+  trigger:
+    - platform: state
+      entity_id: sensor.xiaomi_l05b_b558_conversation
+    - platform: event
+      event_type: xiaomi_miot.xiaoai_conversation
+  condition:
+    - condition: template
+      value_template: >-
+        {% set text = trigger.to_state.state if trigger.platform == 'state' else (trigger.event.data.query if trigger.event is defined and trigger.event.data is defined else '') %}
+        {{ ('灯' in text or '卧室' in text) and ('红' in text or '绿' in text or '蓝' in text or '粉' in text or '紫' in text or '黄' in text or '青' in text or '橙' in text) and ('空调' not in text) }}
+  action:
+    - service: light.turn_on
+      target:
+        entity_id: light.wo_shi_wo_shi_deng
+      data:
+        rgb_color: >-
+          {% set text = trigger.to_state.state if trigger.platform == 'state' else (trigger.event.data.query if trigger.event is defined and trigger.event.data is defined else '') %}
+          {% if '红' in text %}[255, 0, 0]
+          {% elif '绿' in text %}[0, 255, 0]
+          {% elif '蓝' in text %}[0, 100, 255]
+          {% elif '粉' in text %}[255, 105, 180]
+          {% elif '紫' in text %}[128, 0, 128]
+          {% elif '黄' in text %}[255, 255, 0]
+          {% elif '橙' in text %}[255, 140, 0]
+          {% else %}[255, 255, 255]
+          {% endif %}
+    - service: text.set_value
+      target:
+        entity_id: text.xiaomi_l05b_b558_play_text
+      data:
+        value: "好的，已为你变换灯光色彩"
   mode: restart
 ```
 
