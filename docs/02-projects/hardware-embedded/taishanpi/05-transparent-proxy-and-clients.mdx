@@ -1,82 +1,173 @@
 ---
 slug: /projects/taishanpi/transparent-proxy-and-clients
-title: 旁路由科学上网（PassWall / OpenClash）配置与全屋终端透明代理指南
+title: 旁路由透明代理（OpenClash / PassWall）深度配置与全屋多终端接入指南
 sidebar_position: 5
+description: 记录基于泰山派 RK3566 的 OpenWrt 旁路由科学上网实战：OpenClash 升级 Clash.Meta (Mihomo) 核心以支持 Hysteria 2 与 VLESS Reality、三大踩坑排障全复盘、REST API 节点调度、以及 Windows / macOS / 移动端全屋无感透明代理配置。
 ---
 
-# 旁路由科学上网（PassWall / OpenClash）配置与全屋终端透明代理指南
+# 旁路由透明代理（OpenClash / PassWall）深度配置与全屋多终端接入指南
 
-泰山派 OpenWrt 旁路由搭建完毕后，最核心的用途是实现**全屋网络透明代理**：
-* 客户端（手机/电脑/电视盒子/Switch/Apple TV）**无需安装任何代理软件或客户端 App**；
-* 设备只需将网络网关指向泰山派 `192.168.31.2`，即可实现国内流量直连、海外流量自动走加密节点的智能分流。
+泰山派 OpenWrt 旁路由部署完成后，核心目标是实现**全屋网络无感透明代理**：
+* 局域网各终端（手机、电脑、电视盒子、智能家居）**无需在本地安装任何代理客户端软件**；
+* 设备只需将网络网关指向泰山派 `192.168.31.2`，即可实现国内流量极速直连、海外流量自动经加密节点智能分流；
+* 支持最新现代协议（**Hysteria 2**、**VLESS Reality**、**Shadowsocks**）。
 
-本篇记录 OpenWrt 后台科学上网插件（PassWall / OpenClash）的订阅配置，以及两种终端接入模式的详细设置。
+本篇完整记录从核心选型、Mihomo 内核升级、三大典型故障排错复盘、REST API 自动化控制，到多终端接入的实战经验。
 
 ---
 
-## 1. OpenWrt 后台订阅节点导入（以 PassWall 为例）
-
-1. 浏览器打开 `http://192.168.31.2`（默认用户名 `root`，默认密码 `password` 或空）。
-2. 点击顶部菜单 **服务 (Services) ➔ PassWall**：
+## 1. 旁路由透明代理流转拓扑
 
 ```mermaid
-flowchart LR
-    A["🔑 机场订阅 URL"] --> B["📥 PassWall 手动更新订阅"]
-    B --> C["📋 生成可用节点列表"]
-    C --> D["⚡ 勾选主开关并选择 TCP 节点"]
-    D --> E["🌐 运行模式: 中国列表以外 (智能分流)"]
-    E --> F["🚀 保存并应用 (状态: 🟢 正常运行)"]
+flowchart TD
+    subgraph LAN["🏠 家庭局域网 (192.168.31.0/24)"]
+        PC1["💻 主工作电脑 (192.168.31.152)\n[网关: 192.168.31.2]"]
+        PC2["💻 另一台电脑 (192.168.31.188)\n[网关: 192.168.31.2]"]
+        Mobile["📱 手机 / 平板终端\n[网关: 192.168.31.2]"]
+        MainRouter["🌐 小米主路由器 (192.168.31.1)\n[负责 PPPoE 宽带拨号与光猫出口]"]
+    end
 
-    style A fill:#f4f2ec,stroke:#d97757,stroke-width:2px
-    style C fill:#f4f2ec,stroke:#d97757,stroke-width:2px
-    style E fill:#f4f2ec,stroke:#d97757,stroke-width:2px
-    style F fill:#d97757,stroke:#c15f3d,stroke-width:2px,color:#fff
+    subgraph TSP_OpenWrt["🔀 泰山派 OpenWrt (192.168.31.2)"]
+        Dnsmasq["📡 DNS 监听 (:53)"]
+        Iptables["🛡️ Iptables PREROUTING\n[NAT 重定向透明代理]"]
+        
+        subgraph OpenClashCore["🚀 OpenClash (Clash.Meta / Mihomo)"]
+            MetaCore["⚡ Mihomo 内核 (arm64)\n[支持 HY2 / VLESS Reality]"]
+            RuleEngine["📋 规则引擎 (Fake-IP / 分流分载)"]
+            API["🎛️ REST API (:9090)\n[Web 控制面板 / 外部调度]"]
+        end
+    end
+
+    PC1 & PC2 & Mobile -->|DNS 请求| Dnsmasq
+    PC1 & PC2 & Mobile -->|出网 TCP/UDP 流量| Iptables
+    
+    Iptables -->|重定向至 7892/7895| MetaCore
+    MetaCore --> RuleEngine
+    RuleEngine -->|国内流量直连| MainRouter
+    RuleEngine -->|海外加密流量 (HY2 / VLESS)| MainRouter
+    MainRouter -->|宽带出口| Internet["🌍 互联网络"]
+
+    style MetaCore fill:#f4f2ec,stroke:#d97757,stroke-width:2px
+    style OpenClashCore fill:#f4f2ec,stroke:#d97757,stroke-width:2px
+    style Internet fill:#d97757,stroke:#c15f3d,stroke-width:2px,color:#fff
 ```
 
-### 1.1 节点订阅与基本设置
-* **节点订阅**：点击“节点订阅”标签 ➔ 添加订阅链接 ➔ 点击“保存并应用” ➔ 点击“手动更新订阅”；
-* **基本设置**：
-  * **主开关**：勾选启用；
-  * **TCP 节点**：选择目标高速节点（如香港/新加坡/日本节点，或自动选择最低延迟节点）；
-  * **UDP 节点**：可选择与 TCP 相同节点（支持游戏/语音加速）；
-  * **运行模式**：保持默认 **“中国列表以外 (绕过大陆 IP)”**；
-  * **DNS 过滤模式**：选择 `ChinaDNS-NG` 或 `UDP 转发`，防止 DNS 污染。
-* 点击右下角 **“保存并应用”**。
+---
+
+## 2. OpenClash 适配与 Clash.Meta (Mihomo) 核心部署
+
+现代机场节点普遍采用了 **Hysteria 2 (HY2)** 和 **VLESS Reality (XTLS-rprx-vision)** 协议。OpenWrt 原装旧版核心（如 Xray 1.5.x 或原版 Clash）无法解析此类新型节点，必须部署 **Clash.Meta（现称 Mihomo）** 核心。
+
+### 2.1 获取并部署 ARM64 架构 Mihomo 内核
+泰山派主控为瑞芯微 RK3566，指令架构为 `aarch64` (`linux/arm64`)：
+
+```bash
+# 1. 登录泰山派终端，下载最新的 Mihomo arm64 二进制发布包
+curl -s -L "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.30/mihomo-linux-arm64-v1.19.30.gz" -o /tmp/mihomo.gz
+
+# 2. 解压并赋予可执行权限
+gzip -dc /tmp/mihomo.gz > /tmp/clash_meta
+chmod 755 /tmp/clash_meta
+
+# 3. 部署至 OpenWrt 容器对应的 OpenClash 核心目录
+docker cp /tmp/clash_meta openwrt:/etc/openclash/core/clash_meta
+docker cp /tmp/clash_meta openwrt:/etc/openclash/core/clash
+docker exec openwrt chmod 755 /etc/openclash/core/clash /etc/openclash/core/clash_meta
+
+# 4. 验证内核架构与版本
+docker exec openwrt /etc/openclash/core/clash_meta -v
+# 输出: Mihomo Meta v1.19.x linux arm64 ...
+```
 
 ---
 
-## 2. 终端设备接入旁路由的两种模式
+## 3. 实战排障与三大深坑复盘（避坑宝典）
 
-### 模式 A：指定单机接入模式（强烈推荐 ⭐⭐⭐⭐⭐，零风险）
+在部署与调优过程中，以下三个问题极其隐蔽，属于典型排错难点：
 
-只让需要翻墙的设备走泰山派旁路由，家里老人、小孩的手机或智能家居依旧走主路由器，互不干扰，即使泰山派关机重启全家也不会断网。
+### 坑 1：Mihomo v1.18+ 路径安全校验报错 (`path is not subpath of home directory`)
+* **报错现象**：启动 OpenClash 时核心秒退，日志提示：
+  ```text
+  level=fatal msg="Parse config error: path is not subpath of home directory or SAFE_PATHS: /usr/share/openclash/ui \n allowed paths: [/etc/openclash]"
+  ```
+* **根本原因**：新版 Mihomo 加强了安全沙箱，默认禁止将配置目录之外的 `/usr/share/openclash/ui` 作为外部控制面板路径；且 OpenClash 采用 `capsh --user=nobody` 降权启动核心，`capsh` 默认会丢弃父进程的大部分非白名单环境变量。
+* **解决方案**：在 `/etc/init.d/openclash` 执行核心启动命令的 `nohup` 前显式注入环境变量：
+  ```bash
+  # 将 nohup $CLASH 替换为：
+  nohup env SKIP_SAFE_PATH_CHECK=1 $CLASH -d $CLASH_CONFIG -f "$CONFIG_FILE" >> $LOG_FILE 2>&1 &
+  ```
 
-#### 📱 手机 / 平板设置（以 iOS / Android 为例）
-1. 连接家庭 Wi-Fi ➔ 点击 Wi-Fi 名称右侧的 ℹ️（详情）；
-2. 将 **IP 获取方式 (IPv4 设置)** 由 `自动 (DHCP)` 改为 **`手动 (静态 / Static)`**：
-   * **IP 地址**：`192.168.31.188`（填一个未被占用的 IP，例如 192.168.31.100~200 之间）；
-   * **子网掩码**：`255.255.255.0`；
-   * **路由器 (网关 / Gateway)**：填写 **`192.168.31.2`**（指向泰山派）；
-   * **DNS**：填写 **`192.168.31.2`**；
-3. 保存后无需重连，打开浏览器直接访问 `google.com` 或 `youtube.com` 即秒级打开！
+### 坑 2：OpenClash 内部探活误判 (`pidof clash`)
+* **报错现象**：核心成功运行，但 OpenClash 在 `Step 5: Check The Core Status` 后立即报错退出。
+* **根本原因**：OpenClash 的状态检查脚本固定使用 `pidof clash` 命令检索进程名。如果通过 shell 包装脚本启动或者重命名二进制为 `clash_meta_bin`，进程表中的进程名与 `clash` 不匹配，脚本误判内核崩溃从而强制停止服务。
+* **解决方案**：内核物理二进制文件必须保持命名为 `clash` 或 `clash_meta`，避免通过多层 bash wrapper 调用。
 
-#### 💻 Windows / macOS 电脑设置
-1. 打开网络适配器设置 ➔ 选择当前网络 ➔ 编辑 IPv4；
-2. 改为手动输入：
-   * **IP 地址**：`192.168.31.150`
-   * **子网掩码**：`255.255.255.0`
-   * **默认网关**：`192.168.31.2`
-   * **首选 DNS**：`192.168.31.2`
+### 坑 3：机场订阅自带 Basic 密码导致局域网 407 报错
+* **报错现象**：终端设置代理后，浏览器弹窗要求输入用户名密码，命令行请求返回 `HTTP/1.1 407 Proxy Authentication Required`。
+* **根本原因**：部分机场导出的 Clash YAML 配置中注入了 `authentication:` 字段（如随机生成的用户凭据）；同时 OpenClash 的 UCI 配置中可能残留了 `@authentication[0]` 节。
+* **解决方案**：
+  ```bash
+  # 1. 删除 OpenWrt 内部生成的认证节
+  docker exec openwrt uci delete 'openclash.@authentication[0]' 2>/dev/null || true
+  docker exec openwrt uci commit openclash
+
+  # 2. 剥离订阅 YAML 中的 authentication 配置块
+  docker exec openwrt sed -i '/authentication:/,+1d' /etc/openclash/config/your_config.yaml
+  ```
 
 ---
 
-### 模式 B：全屋自动托管模式（全家无感透明代理）
+## 4. 自动化节点调度（Clash REST API）
 
-适合希望全屋所有设备连上 Wi-Fi 自动拥有科学上网与去广告功能的用户：
+OpenClash 启动后会开放外部控制端口（默认 `9090`，密钥通常为 `123456` 或后台设置的密码），支持通过 RESTful API 进行无感热切换与延迟测试：
 
-1. 打开浏览器登录家里的小米主路由器后台（`http://192.168.31.1`）；
-2. 进入 **常用设置 ➔ 局域网设置 (DHCP 服务)**：
-   * **默认网关**：修改为 **`192.168.31.2`**；
-   * **DNS 服务器**：修改为 **`192.168.31.2`**；
-3. 保存并应用。
-4. **效果**：全屋所有连接 Wi-Fi 的手机、平板、Apple TV、智能电视全部自动经由泰山派旁路由进行流控与节点加速。
+```bash
+# 1. 查询所有代理策略组当前选中的节点
+curl -s -H "Authorization: Bearer YOUR_SECRET" http://192.168.31.2:9090/proxies | \
+  python3 -c "import sys, json; d=json.load(sys.stdin)['proxies']; print({k: v.get('now') for k,v in d.items() if v.get('type')=='Selector'})"
+
+# 2. 对特定节点发起延迟测试 (毫秒)
+curl -s -H "Authorization: Bearer YOUR_SECRET" \
+  "http://192.168.31.2:9090/proxies/YOUR_NODE_NAME/delay?timeout=5000&url=http://www.gstatic.com/generate_204"
+
+# 3. 热切换目标组至指定节点 (如印度 BGP 节点，返回 204 即切换成功)
+curl -X PUT -H "Authorization: Bearer YOUR_SECRET" -H "Content-Type: application/json" \
+  -d '{"name": "🇮🇳 印度A[BGP]"}' \
+  "http://192.168.31.2:9090/proxies/%F0%9F%94%B0%20%E8%8A%82%E7%82%B9%E9%80%89%E6%8B%A9"
+```
+
+---
+
+## 5. 全屋终端接入旁路由配置指南
+
+当旁路由运行平稳后，局域网终端可通过以下两种方式接入：
+
+### 方式 A：修改设备网络参数（最推荐 ⭐⭐⭐⭐⭐，全自动无感）
+
+这种方式最为优雅，终端**无需运行任何软件**，微信/国内网站走主路由直连，Google/GitHub/国外服务自动走旁路由加速。
+
+| 操作系统 | 配置路径 | 关键参数设置 |
+| :--- | :--- | :--- |
+| **Windows 10 / 11** | 设置 ➔ 网络和 Internet ➔ Wi-Fi/以太网属性 ➔ IP 分配【编辑】(手动) | **IPv4 地址**：`192.168.31.188`<br/>**子网掩码**：`255.255.255.0` (或前缀 24)<br/>**默认网关**：**`192.168.31.2`**<br/>**首选 DNS**：**`192.168.31.2`** |
+| **macOS (苹果电脑)** | 系统设置 ➔ 网络 ➔ Wi-Fi【详细信息】➔ TCP/IP (手动) ➔ DNS | **路由器 (Router)**：**`192.168.31.2`**<br/>**DNS 服务器**：**`192.168.31.2`** |
+| **iOS (iPhone/iPad)** | 设置 ➔ 无线局域网 ➔ 点击当前 Wi-Fi ℹ️ ➔ 配置 IP (手动) ➔ 配置 DNS | **路由器**：**`192.168.31.2`**<br/>**DNS 服务器**：**`192.168.31.2`** |
+| **Android (安卓手机)** | 设置 ➔ WLAN ➔ 长按或详情 ➔ IP 设置改为静态 | **网关**：**`192.168.31.2`**<br/>**域名 1**：**`192.168.31.2`** |
+
+> **提示**：终端完成配置后，在浏览器访问 [https://ipinfo.io](https://ipinfo.io)，即可看到出口 IP 已变为所选节点的公网 IP。
+
+### 方式 B：系统代理端口模式（免改网卡 IP，针对单机临时使用）
+
+若不想更改设备网卡设置，也可以只让浏览器走泰山派开放的代理端口：
+* **代理服务器 IP**：`192.168.31.2`
+* **HTTP / Mixed 代理端口**：`7890`（或 `7893`）
+* **SOCKS5 代理端口**：`7891`
+* **适用场景**：公司电脑受组策略限制无法修改静态 IP、或者仅需特定浏览器走代理。
+
+---
+
+## 6. 运维与运行指标总结
+
+在实际接入多台电脑与手机并运行 4K 视频流媒体压测时：
+* **泰山派系统负载**：四核平均负载在 `0.20 ~ 0.35` 之间，CPU 占用率极低；
+* **内存占用**：OpenClash + Mihomo 内核常驻内存约为 **100MB ~ 140MB**，泰山派 2GB 内存充裕（可用 900MB+）；
+* **芯片发热**：SoC 核心温度保持在 **47°C ~ 49°C**，被动散热片工作状态极佳。
