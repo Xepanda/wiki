@@ -139,7 +139,67 @@ flowchart TD
 
 ---
 
-## 5. 自动化一键巡检脚本
+## 5. 典型故障排查：小爱音箱语音联动幽灵触发（空调突然自动打开）
+
+### 5.1 故障现象
+小爱音箱在无人交互或夜间静默状态下，偶尔会突然“自言自语”播报 *“好的，已为你打开空调”*，并通过涂鸦红外万能遥控器自动向海尔空调发射开机红外码；检查数据库发现短时间内被连续触发 10 余次。
+
+### 5.2 根因定位与排查链路
+通过对泰山派 Home Assistant SQLite 数据库（`home-assistant_v2.db`）中对话传感器 `sensor.xiaomi_l05b_b558_conversation` 的状态与属性流转分析：
+
+```text
+[22:53:38] state='打开空调' | content='打开空调' | timestamp='2026-09-16T22:53:38' (真实语音指令)
+... 沉寂数十分钟后 ...
+[23:40:08] state='打开空调' | content='None'    | timestamp=None
+[23:40:13] state='打开空调' | content='打开空调' | timestamp='2026-09-16T22:53:38' (幽灵触发 1)
+[23:41:04] state='打开空调' | content='None'    | timestamp=None
+[23:41:09] state='打开空调' | content='打开空调' | timestamp='2026-09-16T22:53:38' (幽灵触发 2)
+```
+
+**根本原因**：
+1. **HA 的 `platform: state` 触发机制**：若未指定目标状态 `to:`，**实体只要发生任何 attribute（属性）更新，HA 均会无条件触发自动化**；
+2. **状态残留**：用户说过的语音指令会一直停留在传感器的 `state` 中，不会自动清空重置；
+3. **Miot 轮询属性翻转**：小米 Miot 集成在与云端心跳轮询时，传感器的内部属性周期性在 `null` 与上一次的缓存值之间翻转；
+4. **无时效性校验**：自动化模板 `trigger.to_state.state` 每次均读到残留的历史指令 `"打开空调"`，误判为刚刚开口说的指令，从而反复触发。
+
+### 5.3 彻底修复方案
+在 `automations.yaml` 的所有小爱语音联动自动化条件中，建立**时效性截断防线（Time Window Filter）**：
+
+```yaml
+condition:
+  - condition: template
+    value_template: >-
+      {% set is_valid = false %}
+      {% set text = '' %}
+      {% if trigger.platform == 'event' %}
+        {% set text = trigger.event.data.query | default('') %}
+        {% set is_valid = (text | length > 0) %}
+      {% elif trigger.platform == 'state' %}
+        {% if trigger.to_state is defined and trigger.to_state and trigger.to_state.state not in ['unavailable', 'unknown', '', 'None'] %}
+          {% set ts_str = trigger.to_state.attributes.timestamp | default('') %}
+          {% set ts = as_timestamp(ts_str) if ts_str else 0 %}
+          {# 核心防护 1：语音指令发生时间戳必须在当前系统时间 60 秒以内，彻底截断一切历史重放与轮询缓存 #}
+          {% if ts and (as_timestamp(now()) - ts) | abs <= 60 %}
+            {# 核心防护 2：排除属性翻转，确保状态值或时间戳确实发生了更新 #}
+            {% set from_ts = trigger.from_state.attributes.timestamp if (trigger.from_state is defined and trigger.from_state and trigger.from_state.attributes is defined) else '' %}
+            {% set from_val = trigger.from_state.state if (trigger.from_state is defined and trigger.from_state) else '' %}
+            {% if from_ts != ts_str or from_val != trigger.to_state.state %}
+              {% set text = trigger.to_state.state %}
+              {% set is_valid = true %}
+            {% endif %}
+          {% endif %}
+        {% endif %}
+      {% endif %}
+      {{ is_valid and ('空调' in text) and ('开' in text) and ('关' not in text) }}
+```
+
+**效果验证**：
+* 过滤后实测：云端轮询与重启期间的所有旧属性刷新均被拦截（`is_valid: False`）；
+* 真实语音指令发起时，指令时间戳与当前时间差 $< 2$ 秒（`is_valid: True`），正常触发，误开现象彻底消失。
+
+---
+
+## 6. 自动化一键巡检脚本
 
 可将以下脚本保存为 `/root/ha_check.sh`，随时在泰山派执行以获取系统与 HA 的全景报告：
 
