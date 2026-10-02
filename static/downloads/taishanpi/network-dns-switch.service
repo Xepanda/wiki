@@ -1,0 +1,10 @@
+[Unit]
+Description=Select home or current-network DNS upstream
+After=NetworkManager.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/network-dns-switch
+TimeoutStartSec=75
+NoNewPrivileges=true

@@ -1,0 +1,11 @@
+[Unit]
+Description=Check DNS reachability across Windows Wi-Fi changes
+
+[Timer]
+OnBootSec=5s
+OnUnitInactiveSec=30s
+AccuracySec=1s
+Unit=network-dns-switch.service
+
+[Install]
+WantedBy=timers.target

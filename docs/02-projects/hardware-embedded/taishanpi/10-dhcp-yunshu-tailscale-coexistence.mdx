@@ -9,7 +9,7 @@ description: 记录小米 DHCP 迁移到泰山派 OpenWrt、Windows 自动获取
 
 本次调整解决两个实际需求：家庭设备连接 Wi-Fi 后自动经过软路由分流；工作电脑开启云枢（YunShu）后仍能同时访问公司内网与普通外网。Linux 虚拟机还运行 Tailscale，需要处理它与云枢之间的地址范围和防火墙冲突。
 
-本文记录 **2026-10-02 的实际环境与最终生效配置**。前置部署见 [OpenWrt 旁路由搭建](./04-openwrt-bypass-gateway-setup.mdx)，代理内核与节点管理见 [透明代理与终端接入](./05-transparent-proxy-and-clients.mdx)。
+本文记录 **2026-10-02 家庭网络切换与云枢共存修复的配置**。后续普通 DNS 漫游改动见 [Ubuntu 虚拟机 DNS 随 Wi-Fi 自动切换](./11-ubuntu-dns-roaming.mdx)；本文的固定普通上游代码保留为该改动之前的排障基线。前置部署见 [OpenWrt 旁路由搭建](./04-openwrt-bypass-gateway-setup.mdx)，代理内核与节点管理见 [透明代理与终端接入](./05-transparent-proxy-and-clients.mdx)。
 
 :::info 适用范围与资料处理
 本文以 IPv4、家庭网络 `192.168.31.0/24` 和 VMware NAT 为基线。示例地址、接口名与公司域名均需按自己的环境核对。公开文档不包含 SSH 密码、路由器登录会话、云枢令牌、代理订阅凭据或设备完整 MAC 清单。
@@ -46,7 +46,7 @@ description: 记录小米 DHCP 迁移到泰山派 OpenWrt、Windows 自动获取
 | Ubuntu 开启云枢 | 公司域名交给云枢 DNS；普通外网继续交给软路由 |
 | 新增公司域名 | `tuya-inc.com` 及其子域名已被 DNS 分流规则覆盖 |
 | 其他公司域名后缀 | 需要另行核对与配置，例如本次未自动添加 `tuya-inc.top` |
-| 外出连接其他 Wi-Fi | Windows 的 DHCP 可随网络变化；Ubuntu 的软路由 DNS 配置仍绑定家庭环境，需要另外设计网络切换 |
+| 外出连接其他 Wi-Fi | Windows 随网络自动获取；Ubuntu 后续增加普通 DNS 自动切换，外出代理仍需另行提供 |
 
 家庭代理与公司内网访问是两种不同能力。普通家庭设备不会因为连接了这台软路由就获得公司的云枢访问权限。
 
@@ -319,8 +319,8 @@ sudo resolvectl flush-caches
 
 这个地址范围检查针对本例的云枢配置；其他部署需要改成对应的预期结果。刷新 systemd-resolved 缓存不会保证清除浏览器自己的 DNS / 连接缓存，浏览器验证时应完整退出并重新打开。
 
-:::note 家庭网络之外的使用
-本地 dnsmasq 的默认上游仍固定为 `192.168.31.2:7874`，`resolv.conf` 仍被锁定。Windows 自动获取已实现，Ubuntu 尚未实现根据不同 Wi-Fi 自动选择 DNS；离开家庭网络后，普通域名解析可能不可用。云枢未连接时，公司域名分流也没有可用的隧道服务。
+:::note 后续增加了 DNS 自动切换
+本篇最初的普通上游固定为 `192.168.31.2:7874`，离家会受影响。后续已将普通上游移到独立文件并增加定时检测，家里使用软路由，外出采用当前网卡 DNS；`resolv.conf` 的本地入口与公司后缀分流保持不变。完整配置、安装和验证边界见 [DNS 自动切换](./11-ubuntu-dns-roaming.mdx)。云枢未连接时，公司域名仍可能不可用。
 :::
 
 ## 6. 云枢与 Tailscale 的回包冲突
