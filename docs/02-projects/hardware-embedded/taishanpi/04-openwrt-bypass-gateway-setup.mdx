@@ -2,6 +2,7 @@
 slug: /projects/taishanpi/openwrt-bypass-gateway-setup
 title: Docker Macvlan 模式 OpenWrt 旁路由搭建与宿主机互通实战
 sidebar_position: 4
+description: 记录泰山派通过 Docker macvlan 部署 OpenWrt 旁路由，以及宿主机 mac0 互通配置和后续 DHCP 接管的区别。
 ---
 
 # Docker Macvlan 模式 OpenWrt 旁路由搭建与宿主机互通实战
@@ -10,6 +11,10 @@ sidebar_position: 4
 
 本篇记录从物理网卡混杂模式开启、Macvlan 虚拟网络构建、OpenWrt 容器编排、到宿主机互通网桥 `mac0` 持久化固化的全套实操。
 
+:::info 初始部署与当前配置
+本文步骤描述初始部署阶段：小米分配地址，OpenWrt DHCP 暂时关闭，避免两个 DHCP 服务冲突。2026-10-02 已切换为小米提供 Wi-Fi 与上游出口、OpenWrt 接管 DHCP 并自动下发网关和 DNS。当前配置、迁移步骤与回滚见 [家庭 Wi-Fi 自动代理与云枢、Tailscale 共存实战](./10-dhcp-yunshu-tailscale-coexistence.mdx)。
+:::
+
 ---
 
 ## 1. 网络架构与拓扑原理
@@ -17,7 +22,7 @@ sidebar_position: 4
 ```mermaid
 flowchart TB
     subgraph PhysicalLAN["物理局域网 (192.168.31.0/24)"]
-        Router["🏠 主路由 (小米 192.168.31.1)\n[负责 PPPoE 拨号与 DHCP 分配]"]
+        Router["🏠 主路由 (小米 192.168.31.1)\n[负责上游出口与初始 DHCP 分配]"]
         Clients["📱 电脑 / 手机 / 电视终端"]
     end
 
