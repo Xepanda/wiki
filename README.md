@@ -20,6 +20,7 @@
   * 🖥️ [双笔记本单屏工作站](docs/02-projects/desktop-workflow/dual-laptop-kvm/)：Deskflow 跨屏键鼠 + DisplaySwitch 信号偷取
   * ☁️ [Cloudflare 开发者全栈实战](docs/02-projects/cloud-and-edge/)：Pages / Workers / Tunnels / R2 边缘服务
   * ⚡ [系统调优与环境实操](docs/02-projects/practical-tutorials/)：生产级 WSL2 环境自动化迁移与 Win11 极限调优
+  * 🤖 [AI Agent 终端与移动访问](docs/02-projects/ai-agent-platform/)：Herdr + Collie + Tailscale，含方案演进、部署、日常使用与验收记录
 * **🧰 [工具资源](docs/03-resources/)**：Docker 常用命令备忘单、Windows Terminal + Oh My Posh 现代化配置
 * **📝 [随笔日志](docs/04-journal/)**：技术思考、架构选型复盘与学习随笔
 * **📌 [归档与草稿](docs/05-archive/)**：待写草稿箱与历史旧方案归档隔离区

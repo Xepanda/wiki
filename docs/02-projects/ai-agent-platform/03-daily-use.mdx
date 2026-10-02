@@ -1,0 +1,134 @@
+---
+slug: /projects/ai-agent-platform/daily-use
+title: 电脑与手机的日常使用
+sidebar_position: 3
+description: 从打开 Collie、进入 Herdr、启动 Codex 或 Claude，到手机配对、特殊按键、退出与恢复的完整操作流程。
+---
+
+# 电脑与手机的日常使用
+
+先记住四个角色：**Herdr 保持 Linux 终端，Collie 提供浏览器操作界面，Tailscale 提供访问网络，CLI Agent 执行任务。** 安装和浏览器配对完成后，日常使用不需要反复安装软件或重启服务。
+
+## 1. 在 Linux 浏览器打开 Collie
+
+本次环境准备了专用浏览器启动器：
+
+```bash
+rtk proxy "$HOME/.local/bin/collie-browser"
+```
+
+这是本机配置提供的脚本，不是 Collie 上游自带命令。它使用独立 Chrome profile，并仅对 Collie 域名处理假 IP 解析；具体原理见[排障记录](./04-troubleshooting-and-verification.mdx)。
+
+后续继续用同一 profile，才能保留 `linux-browser` 的配对凭证。清除网站数据、换浏览器或使用新的隐私窗口，都可能需要重新配对。
+
+打开首页，找到工作区和已有终端卡片，点击进入。页面输入框发送的是 Linux 上那个终端的输入。
+
+## 2. 先分清 shell 和 Agent
+
+| 当前看到的状态 | 可以输入的内容 |
+|---|---|
+| shell 提示符 | `pwd`、`cd`、启动 CLI 等终端命令 |
+| Codex / Claude 的输入提示 | 自然语言任务、追加需求、对 Agent 问题的回答 |
+| CLI 的选择或授权提示 | 用 Keys 面板的方向键、Enter 等操作；根据具体内容决定是否确认 |
+
+把 `cd` 发给正在工作的 Agent，不等于直接让 shell 切换目录。先退出到 shell，再切换项目。
+
+## 3. 完成第一次测试任务
+
+在现有测试终端发送：
+
+```bash
+rtk proxy pwd
+```
+
+本次专用 pane 位于 `$HOME/.local/share/agent-platform/interactive-smoke`。先在这个目录熟悉操作，再切换真实项目。
+
+在 shell 中启动 Codex：
+
+```bash
+rtk proxy codex
+```
+
+等 CLI 显示输入提示后，发送：
+
+> 先查看当前目录，说明有哪些文件。暂时不要修改文件。
+
+想验证写入时再发送：
+
+> 在当前测试目录创建 hello.txt，内容为“你好，Agent”，然后读取它，确认内容正确。
+
+以上是真实 Agent 任务的操作示例，不是本次终端链路验证中已经执行过的任务。本次实际链路验收使用无模型的专用 PTY 输入/输出。
+
+Claude 的启动方式是：
+
+```bash
+rtk proxy claude
+```
+
+先让一个终端运行一个 Agent。CLI 的登录、模型路由与工具权限继续使用原有设置。agy CLI 的可用性需要根据当前 provider 状态判断，不能因为曾经连接成功就视为一直可用。
+
+## 4. 在自己的项目里开发
+
+回到 shell 后，进入实际项目，再启动 Agent：
+
+```bash
+cd /path/to/your/project
+rtk proxy codex
+```
+
+建议先要求它说明项目结构、启动方法和当前 Git 状态，再给出具体修改任务。
+
+多个 Agent 同时编辑时，使用不同工作区或 Git worktree，避免共同修改同一批文件。不要把 Paperclip 原生 Run 的工作区管理与交互式 Herdr 工作区混为一套调度机制。
+
+## 5. 直接在 Linux 终端使用 Herdr
+
+环境变量已配置的新终端可以直接执行：
+
+```bash
+herdr
+```
+
+没有加载环境变量时，使用完整命令进入 Collie 对应实例：
+
+```bash
+rtk proxy env \
+  HERDR_CONFIG_PATH="$HOME/.config/herdr-interactive/config.toml" \
+  HERDR_SOCKET_PATH="$XDG_RUNTIME_DIR/herdr-interactive/server.sock" \
+  herdr
+```
+
+在 Herdr 中启动的 Claude / Codex 可以出现在 Collie。**直接在普通终端启动的已有进程不会自动迁移进去。** 原普通终端任务先正常完成；之后在 Herdr 中启动 CLI，并使用该 CLI 的恢复功能。恢复聊天记录和迁移原进程是两件不同的事。
+
+需要新建项目工作区时，在已经进入的 Herdr 终端中运行：
+
+```bash
+rtk proxy herdr workspace create --label my-project --cwd /path/to/your/project
+```
+
+此处 `workspace create` 的 `--label` 和 `--cwd` 已核对本次 Herdr 0.9.3 的命令组帮助；升级后先用 `rtk proxy herdr workspace` 检查语法。使用 CLI 返回或界面显示的真实工作区信息，不从示例推测 pane ID。本次 Collie 只接入专用 Herdr 的 primary session；创建另一套默认实例或命名会话，未必在当前页面中出现。
+
+## 6. 手机接入
+
+1. 手机安装 [Tailscale](https://tailscale.com/download)，登录 Linux 使用的同一个账号并开启连接。
+2. 在设备列表确认能看到 Linux 主机。
+3. 手机浏览器打开主机的完整 HTTPS 域名，例如 `https://agent-host.tail1234.ts.net`；不要改成 IP 地址来跳过证书检查。
+4. Linux 终端运行 `rtk proxy collie pair --plain`。
+5. 手机 Collie 进入 **Settings → Paired devices**，输入新配对码，名称可用 `my-phone`。
+6. 打开已有终端卡片，发送一个无害命令确认实际输出，再使用 Agent。
+
+电脑浏览器配对不会自动授权手机浏览器。每个新客户端分别配对，Linux 虚拟机保持运行，手机保持 Tailscale 连接。手机实际接入是否成功，以手机页面和输入输出为准；本次记录没有把指导步骤当成手机验收结果。
+
+## 7. 特殊按键、离开与恢复
+
+Collie 的 **Keys** 面板提供 Esc、方向键、Enter、Tab 和 Ctrl 等按键。CLI 处于确认或选择界面时，使用这些键；普通文字回复使用输入框。
+
+| 操作 | 结果 |
+|---|---|
+| 关闭 Collie 页面 | 浏览器离开，Herdr 中的终端/进程继续保持；受主机存活与服务状态约束 |
+| Herdr 中按 Ctrl+B，松开后按 Q | 分离当前 TUI 客户端，后台会话保留；这是本次配置验证过的快捷键 |
+| 再次执行 `herdr` | 重连同一个配置/socket 对应的会话 |
+| 发送 Ctrl+C | 中断或退出行为由当前 shell/CLI 决定，不保证所有 Agent 一次按键就完全退出 |
+| shell 中运行 `exit` | 退出那个 shell，可能结束 pane；与关闭网页不同 |
+| 停止 Herdr 服务或关闭虚拟机 | 会影响后台会话，不能等同于浏览器断开 |
+
+当前记录验证了日常连接和终端输入；不要把“浏览器关闭后进程保持”推广成“虚拟机重启后任何任务都会无损恢复”。

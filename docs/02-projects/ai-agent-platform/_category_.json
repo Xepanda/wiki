@@ -1,0 +1,9 @@
+{
+  "label": "AI Agent 终端与移动访问",
+  "position": 7,
+  "link": {
+    "type": "generated-index",
+    "slug": "/category/projects/ai-agent-platform",
+    "description": "从统一 Agent 平台方案收敛到 Herdr、Collie 与 Tailscale，记录 Linux 部署、使用方法、踩坑与实际验收范围。"
+  }
+}

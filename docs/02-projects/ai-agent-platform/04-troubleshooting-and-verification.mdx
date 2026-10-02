@@ -1,0 +1,170 @@
+---
+slug: /projects/ai-agent-platform/troubleshooting-and-verification
+title: 排障过程、验收证据与回退
+sidebar_position: 4
+description: 记录 Serve 权限、假 IP DNS、身份与配对门禁、启动时序、原生 Gateway 约束，以及实际通过和未通过的检查。
+---
+
+# 排障过程、验收证据与回退
+
+这次最容易误判的地方是：**进程活着、命令返回 0、页面显示一个 URL，都不能单独证明访问或终端输入已经成功。** 每一层都需要独立检查。
+
+## 1. 实际验收结果
+
+| 检查 | 实际结果 | 说明 |
+|---|---|---|
+| Herdr / Collie 用户服务 | active，已启用 | 没有执行主机重启验收 |
+| Herdr 专用 socket | running、compatible，协议 22 | 与当前 Collie 后端一致 |
+| Herdr 客户端分离与重连 | 两个 PTY 客户端分别用 Ctrl+B、Q 分离，均退出 0，服务端与工作区保留 | 早期本地安装验证；不代表虚拟机重启验收 |
+| 身份检查 | 缺失 403、正确所有者 200、错误身份 403 | 本机请求矩阵；真实 HTTPS 正向检查另做 |
+| 未知 Host / Origin | 403 / 403 | 本地桥接端拒绝不允许的来源 |
+| Serve 映射 | tailnet HTTPS443 → loopback8787 | 从真实 `tailscale serve status` 确认，不依赖 banner |
+| HTTPS 证书与读取 | 保留 FQDN/SNI，连接 tailnet IP，证书验证通过，snapshot200 | 没有关闭 TLS 验证 |
+| 普通本机域名访问 | 失败，TLS EOF | 现有假 IP DNS 路径导致，未标记通过 |
+| 专用浏览器访问 | Chrome 退出 0，页面标题 Collie，无 TLS 错误页 | 精确域名映射，仅专用 profile 绕过代理；保留 Chrome sandbox |
+| 浏览器配对 | 所有者浏览器 `linux-browser` 已登记 | 设备 token 未进入公开记录 |
+| 终端写入 | 缺失 token403、错误 token403、有效 token200 | 有效输入还确认了真实 PTY 输出 |
+| 错误凭证副作用 | 测试输出中不存在被拒绝输入的 nonce | 不是仅观察 HTTP 状态 |
+| 验证后清理 | 临时测试设备已撤销，所有者浏览器保留 | 没有撤销最后一个有效设备 |
+| 手机操作 | 提供了步骤 | 无完整的真实手机连通和写入证据 |
+| 真实 Agent 交互任务 | 提供了操作示例 | 此轮 PTY 验收不包含新付费模型任务 |
+
+测试发送命令时把 nonce 分段构造，完整 nonce 不出现在命令回显中；只有实际执行输出才能匹配成功。这避免把“终端回显了输入文字”误认为命令已执行。
+
+## 2. Tailscale 安装结束不等于登录完成
+
+安装日志停在创建 systemd symlink 附近时，先检查是否安装进程已经结束、服务是否启动。登录是独立的账号所有者动作。
+
+```bash
+rtk proxy tailscale status
+rtk proxy systemctl status tailscaled --no-pager
+```
+
+本次安装完成后明确提示“Tailnet login is a separate owner action”。后续账号所有者完成登录，才取得设备的 tailnet IP。
+
+## 3. Serve 权限拒绝，但 Collie start 返回 0
+
+实际错误：
+
+```text
+sending serve config: Access denied: serve config denied
+note: the tailnet front door did not come up
+```
+
+与此同时 `collie start --plain` 可以返回 0，并打印一个 tailnet URL，因为 bridge 本身已经启动。只有 `tailscale serve status` 中存在预期映射，才能证明入口建立。
+
+修复由本机所有者执行：
+
+```bash
+rtk proxy sudo tailscale set --operator="$USER"
+rtk proxy collie start --plain
+rtk proxy tailscale serve status
+```
+
+没有因为提示提到 Headscale 就切换到 HTTP。本次是普通 Tailscale 域名，根因是本机配置权限。
+
+## 4. 假 IP DNS 与本机访问失败
+
+本机原有代理把 Collie 的 tailnet 域名解析到 `198.18.0.0/15` 的假 IP。通过真实 tailnet IP、保留原域名 SNI 的 HTTPS 请求成功，但普通域名路径发生 TLS EOF。这把问题定位到本机域名访问路径，而不是 Collie 服务或证书失效。
+
+没有覆盖系统 DNS、关掉企业 TUN，也没有使用 `--ignore-certificate-errors`。采用专用 Chrome 启动器，只映射 Collie 的一个 hostname，并只在这一浏览器实例禁用代理。
+
+下面展示可复现的脚本结构；先把示例域名和 IP 换成 `tailscale status` 中的实际值，再保存为 `$HOME/.local/bin/collie-browser`：
+
+```bash
+#!/bin/sh
+exec /usr/bin/google-chrome \
+  --user-data-dir="$HOME/.local/share/agent-platform/collie-browser" \
+  --no-proxy-server \
+  --host-resolver-rules="MAP agent-host.tail1234.ts.net 100.100.20.30" \
+  --app=https://agent-host.tail1234.ts.net \
+  "$@"
+```
+
+```bash
+rtk proxy chmod 700 "$HOME/.local/bin/collie-browser"
+rtk proxy mkdir -p "$HOME/.local/share/agent-platform/collie-browser"
+rtk proxy chmod 700 "$HOME/.local/share/agent-platform/collie-browser"
+rtk proxy "$HOME/.local/bin/collie-browser"
+```
+
+这只解决该 Linux 浏览器实例的解析，不修复其他应用，也不替代手机的 Tailscale 连接。设备 IP/域名变化后需要更新映射。
+
+## 5. 读取成功但不能输入
+
+先区分两道写入门：
+
+| 门禁 | 使用场景 | 本次处理 |
+|---|---|---|
+| `COLLIE_DEVICE_HEADER` + allowlist | 可信代理覆盖并注入设备标识 | 初始作为关闭写入门；Tailscale Serve 不提供该标识，配对后移除 |
+| 原生设备配对 | 客户端持有 Bearer token | 最终正式写入控制 |
+
+空 header allowlist 会拒绝全部写入，即使持有有效配对 token。不要为解决这个问题随意填一个可伪造的 header 值；按照[部署顺序](./02-linux-deployment.mdx)先确认身份与设备登记，再转为原生配对。
+
+固定版本在设备列表为空时关闭配对写入检查，因此删除最后一个设备前必须恢复独立关闭写入门。
+
+## 6. 本地跳过 Serve 的身份差异
+
+本次验证发现：`COLLIE_SKIP_SERVE=1` 时，缺失身份 header 的本地读取可能仍为 200；`COLLIE_SKIP_SERVE=0` 加可信账号后，缺失身份返回 403。
+
+启用真实 Serve 后保持强身份模式。回退时，先停止 bridge、移除确认属于 Collie 的映射，再恢复 skip-Serve 配置。不能在远程映射仍存在时先切回弱身份的本地模式。
+
+loopback TCP 也不等于不同 Linux UID 之间的隔离；能连接本地端口的进程可以伪造普通 header。不要把 header 检查包装成 OS 用户边界。
+
+## 7. 启动时序与测试返回格式
+
+一次重启后仅等待 1 秒就发送请求，得到 connection refused。日志确认约 2 秒后开始监听；按有限时间轮询就绪后测试通过。没有为这个短暂窗口改动业务逻辑。
+
+另一处测试错误来自假设原生配对返回 `ok: true`。固定源码实际成功响应是：
+
+```json
+{
+  "token": "仅发给配对客户端，不在记录中保留",
+  "label": "客户端设备名"
+}
+```
+
+测试核对成功 HTTP 状态、token 存在与 label，再继续验证。首次错误留下的临时测试设备已撤销，没有保留无用授权。
+
+## 8. 早期平台开发中的额外约束
+
+这些发现属于早期自动编排/Gateway 工作，不是当前手动终端访问的必需开发任务：
+
+- 受限 Paperclip actor 不能随意给其他 Issue 添加评论；本地 Gateway 使用原生 HTTP Run 控制记录关联实际运行上下文，没有用管理员 key 冒充 Gateway 身份。
+- 评论请求的结果不确定时，依据持久化标记对账，不能盲目重发。原生评论提交与后台 worker 唤醒之间仍有未证明的持久性窗口。
+- 修复了 callback 与创建响应的竞态，以及长期排队记录阻塞其他 Gateway 工作的问题；本地代码评审通过不代表真实飞书已上线。
+- CLI 辅助调用成功不能证明该 CLI 的 Paperclip 原生适配器完成验收。Claude 原生适配器早期测试超时，未通过验收；成功的原生两轮同会话验证属于 Codex。agy 后续一次辅助调用返回 provider 地域限制，未通过改动账户或代理去规避。
+- PostgreSQL 备份客户端准备完成，但没有把一个缺少一致性快照事务的 JS 导出候选当作已完成备份。
+
+这部分已随范围收敛后置，详细状态见[方案与进度](./01-architecture-and-progress.mdx)。
+
+## 9. 故障时的检查与回退
+
+```bash
+rtk proxy systemctl --user status herdr-interactive.service collie.service --no-pager
+rtk proxy tailscale status
+rtk proxy tailscale serve status
+rtk proxy collie doctor --plain
+rtk proxy collie devices list --plain
+```
+
+检查日志时只在本机查看必要内容，不把代理环境、终端历史或配对凭证上传到公开仓库。Shell 配置和 Collie `.env` 修改前保留了用户私有备份。
+
+安全回退顺序：
+
+1. 停止 Collie bridge。
+2. 确认当前 Serve 映射的确由 Collie 管理，运行 `rtk proxy collie unserve` 并确认映射消失。
+3. 恢复此前的 loopback 配置与独立关闭写入门，再启动 bridge。
+4. 若要撤销默认 Herdr 环境变量，删除 `.zshrc` 中本次添加的两条 export；不改 CLI 认证或原有业务会话。
+
+不要全局清空 Serve、删除活跃数据库、杀掉其他 Herdr 实例或重置模型账户来排障。
+
+## 10. 上游参考
+
+- [Herdr](https://herdr.dev/)
+- [Collie 固定版本部署文档](https://github.com/AltanS/collie/blob/887a37dbfc5582d08c7d7703deadd53146f654bb/docs/deployment.md)
+- [Collie 固定版本安全与配对说明](https://github.com/AltanS/collie/blob/887a37dbfc5582d08c7d7703deadd53146f654bb/docs/security.md)
+- [Tailscale HTTPS](https://tailscale.com/docs/how-to/set-up-https-certificates)
+- [Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve)
+- [Tailscale 手机安装](https://tailscale.com/docs/install)
+- [Cloudflare Tunnel](https://developers.cloudflare.com/tunnel/get-started/)，仅后置备选方案
