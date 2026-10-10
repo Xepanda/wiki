@@ -2,6 +2,9 @@ import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
+// Pages serves this site at the domain root; GitHub Pages uses the repo path.
+const isCloudflarePages = process.env.CF_PAGES === '1';
+
 const config: Config = {
   title: 'PandaWiki',
   tagline: '思考、实践与技术沉淀 · 个人技术知识库',
@@ -9,8 +12,8 @@ const config: Config = {
 
   future: { v4: true },
 
-  url: 'https://Xepanda.github.io',
-  baseUrl: '/wiki/',
+  url: isCloudflarePages ? 'https://wiki.epanda.dpdns.org' : 'https://Xepanda.github.io',
+  baseUrl: isCloudflarePages ? '/' : '/wiki/',
   organizationName: 'Xepanda',
   projectName: 'wiki',
 

@@ -1,0 +1,69 @@
+---
+slug: /about/cloudflare-pages
+title: Cloudflare Pages 与 GitHub Pages 双平台部署
+sidebar_position: 3
+description: 记录 Wiki 的 Cloudflare Pages 项目、自动构建及域名根路径适配，同时保留 GitHub Pages 的仓库路径。
+---
+
+# Cloudflare Pages 与 GitHub Pages 双平台部署
+
+本 Wiki 是 Docusaurus 静态网站，源文件保存在 `Xepanda/wiki`。Cloudflare Pages 从 GitHub 构建并托管产物，访问者无需连接 Linux 虚拟机。Collie 的 Tunnel / Access 属于另一套入口，配置此次 Wiki 托管时不修改它。
+
+## 1. 项目配置
+
+截至 **2026-10-11（Asia/Shanghai）**，所有者已完成 Pages 项目与自定义域配置：
+
+| 项目 | 值 |
+|---|---|
+| Pages 项目 | `wiki` |
+| GitHub 授权范围 | 仅 `Xepanda/wiki` |
+| 生产分支 | `master` |
+| 构建命令 | `npm run build` |
+| 输出目录 | `build` |
+| 默认域名 | `wiki-366.pages.dev` |
+| 自定义域名 | `wiki.epanda.dpdns.org` |
+
+自定义域在 Pages 项目中关联后，Pages 创建 `wiki` 的 CNAME，指向默认域名；所有者确认域名激活、SSL 启用。上述网站域名用于公开文档的部署配置，不包含 Tunnel、账户或配对凭据。
+
+```mermaid
+flowchart LR
+    PR["文档 PR"] --> M["GitHub master"]
+    M --> CF["Cloudflare Pages 构建<br/>baseUrl = /"]
+    M --> GH["GitHub Actions 构建<br/>baseUrl = /wiki/"]
+    CF --> W["Wiki 自定义域名"]
+    GH --> G["GitHub Pages 仓库路径"]
+    style CF fill:#f4f2ec,stroke:#d97757,stroke-width:2px
+    style GH fill:#f4f2ec,stroke:#d97757,stroke-width:2px
+```
+
+## 2. 根路径与仓库路径适配
+
+首次 Pages 构建提交 `e53ee5d` 成功，但仍使用 GitHub Pages 的 `/wiki/`。首页引用 `/wiki/assets/...`，而静态资源实际部署在 `/assets/...`，导致页面无法正确渲染。构建成功不代表上线验收通过；资源请求返回 200 时，也要检查是否误返回 HTML 回退页面。
+
+Cloudflare Pages 构建环境会注入 `CF_PAGES=1`。仓库据此选择 URL 和路径，无需额外更改控制台构建命令：
+
+```typescript
+const isCloudflarePages = process.env.CF_PAGES === '1';
+
+// docusaurus.config.ts 中的相关配置
+url: isCloudflarePages ? 'https://wiki.epanda.dpdns.org' : 'https://Xepanda.github.io',
+baseUrl: isCloudflarePages ? '/' : '/wiki/',
+```
+
+这个片段展示配置字段，不是独立 TypeScript 文件。Cloudflare 的默认域名和预览部署同样使用根路径；canonical URL 使用生产自定义域。GitHub Actions 未设置 `CF_PAGES`，继续生成 `/wiki/` 路径。
+
+参考 [Pages 构建环境变量](https://developers.cloudflare.com/pages/configuration/build-configuration/)和 [Docusaurus 部署说明](https://developers.cloudflare.com/pages/framework-guides/deploy-a-docusaurus-site/)。
+
+## 3. 本地验证与更新
+
+```bash
+rtk proxy npm ci --no-audit --no-fund
+rtk proxy npm run build
+rtk proxy env CF_PAGES=1 npm run build -- --out-dir build-cloudflare
+```
+
+默认构建输出 `build`，检查资源路径含 `/wiki/assets/`；Cloudflare 模式输出 `build-cloudflare`，检查资源路径为 `/assets/`。两个输出目录用于分别核对，不覆盖对方的产物。Cloudflare 生产构建仍输出 `build`。
+
+日常修改通过 PR 审阅并合入 `master`，两平台各自构建部署。若部署后仍空白，检查生产部署对应的提交、首页资源路径、JS/CSS 的状态码和 Content-Type，并检查浏览器控制台。新增文档路由也应能直接打开及刷新。
+
+自定义域应先在 Pages 项目关联，再按提示配置 DNS。不要仅手动加 CNAME，或把 Wiki 路由到本机 Collie 端口。参考 [Pages 自定义域](https://developers.cloudflare.com/pages/configuration/custom-domains/)。
