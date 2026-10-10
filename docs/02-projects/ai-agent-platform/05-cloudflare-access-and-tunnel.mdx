@@ -27,7 +27,7 @@ flowchart LR
 
 Cloudflare Access 决定谁能访问站点，Collie 配对决定哪个浏览器能向终端发送输入。两者分别验证。此入口不要求手机加入 tailnet；Linux 虚拟机、Herdr、Collie 和 cloudflared 必须保持运行。
 
-10 月 3 日的 Tailscale Serve 是前一阶段方案。10 月 10 日没有确认其 HTTPS 映射仍然存在，不能把旧入口的验收结果当作两个入口同时可用的证明。
+10 月 3 日的 Tailscale Serve 是前一阶段方案。10 月 10 日未确认映射；10 月 11 日复查发现 Tailscale 服务在线、无健康告警，HTTPS 映射仍指向 Collie 的 `127.0.0.1:8787`。本次未重新验收旧入口的浏览器读写，因此不能仅凭映射存在宣称两个入口均已完整验收。
 
 ## 2. 免费域名与 Cloudflare 委派
 
@@ -41,7 +41,7 @@ Cloudflare Access 决定谁能访问站点，Collie 配对决定哪个浏览器�
 
 `example.dpdns.org` 在 DNS 层级上是三级名称。本次能够作为区域接入 Cloudflare，依赖注册平台允许 NS 委派，以及公共后缀识别；不能把任意免费子域服务都视为具有相同能力。参考 [名称服务器配置教程](https://github.com/DigitalPlatDev/FreeDomain/blob/main/documents/tutorial/platform/1.3-connect-nameservers.md)与[公共后缀列表](https://publicsuffix.org/list/)。
 
-新域名扫描到 0 条 DNS 记录符合本次环境。先完成 NS 委派，Collie 记录随后由 Tunnel 发布流程创建；没有部署根域网站、`www` 或邮箱时，不需要先虚构 A、AAAA、MX 记录。Wiki 自定义域名是另一个部署任务，本次没有配置。
+新域名扫描到 0 条 DNS 记录符合本次环境。先完成 NS 委派，Collie 记录随后由 Tunnel 发布流程创建；没有部署根域网站、`www` 或邮箱时，不需要先虚构 A、AAAA、MX 记录。Wiki 自定义域名属于另一套 Pages 部署任务，10 月 11 日已配置并修复根路径资源加载，见[部署与验收](../../06-about/03-cloudflare-pages.mdx)。
 
 ## 3. 先创建 Access 应用
 
@@ -174,6 +174,7 @@ rtk proxy curl --fail --silent http://127.0.0.1:20241/ready
 | 临时测试设备与工作区清理 | 已完成，保留所有者设备 |
 | 公网浏览器实际终端输入 | 待所有者操作确认 |
 | 手机通过 Cloudflare 域名读写 | 待完整验收，旧手机登记不等于此项通过 |
-| 增加邮箱、Wiki 域名、主机重启恢复 | 未实施或未验收 |
+| 增加邮箱、主机重启恢复 | 未实施或未验收 |
+| Wiki 域名（10 月 11 日补充） | Pages 自定义域已激活，资源、文档路由与首页初始化验收通过 |
 
 回退先关闭公网路由或停止连接器，再恢复私有 Collie 配置；重新采用 Tailscale 时要单独验证 Serve 和身份门禁。不要在公网入口仍存在时撤掉认证保护。

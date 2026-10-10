@@ -67,3 +67,29 @@ rtk proxy env CF_PAGES=1 npm run build -- --out-dir build-cloudflare
 日常修改通过 PR 审阅并合入 `master`，两平台各自构建部署。若部署后仍空白，检查生产部署对应的提交、首页资源路径、JS/CSS 的状态码和 Content-Type，并检查浏览器控制台。新增文档路由也应能直接打开及刷新。
 
 自定义域应先在 Pages 项目关联，再按提示配置 DNS。不要仅手动加 CNAME，或把 Wiki 路由到本机 Collie 端口。参考 [Pages 自定义域](https://developers.cloudflare.com/pages/configuration/custom-domains/)。
+
+## 4. PR 中的 Cloudflare 机器人
+
+[`cloudflare-workers-and-pages[bot]`](https://github.com/apps/cloudflare-workers-and-pages) 是 Cloudflare GitHub 集成的自动账号。授权 Pages 访问仓库后，它会在 PR 中报告部署状态、对应提交、预览 URL 和日志入口。本次授权范围仅为 `Xepanda/wiki`。
+
+[PR #4 的机器人评论](https://github.com/Xepanda/wiki/pull/4#issuecomment-6099467601)显示分支提交 `1b51cfd` 预览部署成功。它不是人工协作者或终端 Agent，也不会替代内容评审。预览成功只证明该分支的部署结果；生产网站更新要以 `master` 对应的部署和实际访问为准。
+
+## 5. 修复后的生产验收
+
+**2026-10-11（Asia/Shanghai）**，[PR #4](https://github.com/Xepanda/wiki/pull/4) 合入提交 `ac3f7e5`，GitHub build / deploy 与 Cloudflare Pages 检查均成功。随后检查的是自定义域生产页面，而非仅检查 PR 预览：
+
+| 检查 | 实际结果 |
+|---|---|
+| 首页 canonical | `https://wiki.epanda.dpdns.org/` |
+| CSS、runtime JS、main JS | 均使用 `/assets/`，返回 200 及正确的 CSS / JavaScript Content-Type |
+| 新部署文档与 Agent 平台文档 | 跟随路径规范化重定向后返回对应文档页面 |
+| 独立 headless Chrome 加载首页 | 退出 0，`data-has-hydrated=true`，客户端初始化完成 |
+| 修复前对照 | `/wiki/assets/` 资源返回 404 HTML，首页 `data-has-hydrated=false` |
+
+验收原始结论还保存在 [PR #4 评论](https://github.com/Xepanda/wiki/pull/4#issuecomment-6099495365)。此次检查覆盖资源加载、文档读取及首页初始化，没有逐项验收所有交互组件。
+
+## 6. 与 Tailscale 和 Collie 的关系
+
+Wiki 托管在 Pages，Linux 虚拟机关闭不影响已经发布的静态文档。Collie 使用 Cloudflare Tunnel + Access，仍依赖 Linux 上的服务运行；Tailscale 提供 tailnet 内设备连接和 Serve 入口。三者分别管理，Pages 构建成功不代表 Collie 或 Tailscale 功能通过验收。
+
+2026-10-11 本机复查：Tailscale 为 Running，主机在线、无健康告警，Serve HTTPS 映射仍指向 `http://127.0.0.1:8787`。这确认旧映射存在，未重新完成旧入口的浏览器读写验收。保留 Tailscale 可用于远程管理；日常 Collie 浏览器访问继续使用已配置的 Cloudflare 入口。
