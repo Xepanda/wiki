@@ -7,7 +7,7 @@ description: 固定版本、专用 Herdr 实例、Collie 配置、Tailscale HTTP
 
 # Linux 部署与接入记录
 
-本篇记录已经执行过的配置顺序。它是部署记录和复现检查表，不是一键安装脚本；新机器仍需先下载固定版本、核验资产并安装服务。日常使用见[使用指南](./03-daily-use.mdx)。
+本篇保留 **2026-10-03 Tailscale 阶段**已经执行过的配置顺序。当前 Cloudflare 入口与主实例进度见[Cloudflare 接入](./05-cloudflare-access-and-tunnel.mdx)及[Paperclip 首次使用](./06-paperclip-first-use.mdx)。它是部署记录和复现检查表，不是一键安装脚本；新机器仍需先下载固定版本、核验资产并安装服务。日常使用见[使用指南](./03-daily-use.mdx)。
 
 ## 1. 环境与路径约定
 
@@ -186,6 +186,6 @@ herdr
 
 初始部署还建立了 Paperclip 主实例 `127.0.0.1:3100` 与测试实例 `127.0.0.1:3101`，独立嵌入式 PostgreSQL 分别为 54329 / 54330，服务端使用私有 Node24，CLI 子进程保留原有 Node22 路径。
 
-测试实例已完成原生 Codex 两轮运行及会话续接；主实例仍等待所有者创建账户和认领管理员。它们没有参与当前 Collie 配对或 Herdr 手动会话。
+测试实例已完成原生 Codex 两轮运行及会话续接；在本篇对应的 10 月 3 日，主实例仍等待所有者创建账户和认领管理员；后续已完成认领与独立 CLI 登录，网页任务尚待验收。它们没有参与当前 Collie 配对或 Herdr 手动会话。
 
-Gateway 曾准备专用系统用户、持久化 SQLite、受限 Paperclip 访问与禁用态安装脚本。实际 root 安装、飞书应用凭证和真实消息接入未执行。Cloudflare 只保留安装与模板，统一资源控制和一致性加密备份也没有上线。完整状态见[方案与进度](./01-architecture-and-progress.mdx)。
+Gateway 曾准备专用系统用户、持久化 SQLite、受限 Paperclip 访问与禁用态安装脚本。实际 root 安装、飞书应用凭证和真实消息接入未执行。本阶段 Cloudflare 只保留安装与模板，10 月 10 日已上线 Access / Tunnel；统一资源控制和一致性加密备份也没有上线。完整状态见[方案与进度](./01-architecture-and-progress.mdx)。

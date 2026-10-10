@@ -7,11 +7,13 @@ description: 从打开 Collie、进入 Herdr、启动 Codex 或 Claude，到手�
 
 # 电脑与手机的日常使用
 
-先记住四个角色：**Herdr 保持 Linux 终端，Collie 提供浏览器操作界面，Tailscale 提供访问网络，CLI Agent 执行任务。** 安装和浏览器配对完成后，日常使用不需要反复安装软件或重启服务。
+先记住四个角色：**Herdr 保持 Linux 终端，Collie 提供浏览器操作界面，Cloudflare 提供当前公网访问入口（Tailscale 是前一阶段入口），CLI Agent 执行任务。** 安装和浏览器配对完成后，日常使用不需要反复安装软件或重启服务。
 
 ## 1. 在 Linux 浏览器打开 Collie
 
-本次环境准备了专用浏览器启动器：
+当前浏览器可打开配置好的 Cloudflare HTTPS 网址，完成邮件验证与设备配对，步骤见[Cloudflare 接入](./05-cloudflare-access-and-tunnel.mdx)。
+
+以下专用浏览器启动器属于 10 月 3 日 Tailscale 方案：
 
 ```bash
 rtk proxy "$HOME/.local/bin/collie-browser"
@@ -97,7 +99,9 @@ rtk proxy env \
   herdr
 ```
 
-在 Herdr 中启动的 Claude / Codex 可以出现在 Collie。**直接在普通终端启动的已有进程不会自动迁移进去。** 原普通终端任务先正常完成；之后在 Herdr 中启动 CLI，并使用该 CLI 的恢复功能。恢复聊天记录和迁移原进程是两件不同的事。
+先确认启动前的配置和 socket 与 Collie 一致。旧 SSH shell 没有加载新增环境变量时，直接 `herdr` 可能进入默认实例；即使工作区名称相同，也不是同一套终端。Agent 内部后来加载环境变量不会迁移已有进程。先用 Ctrl+B、Q 分离，再从正确配置重新连接；保留正在执行的原任务。
+
+在 Collie 对应 Herdr 中启动的 Claude / Codex 可以出现在 Collie。**直接在普通终端启动的已有进程不会自动迁移进去。** 原普通终端任务先正常完成；之后在 Herdr 中启动 CLI，并使用该 CLI 的恢复功能。恢复聊天记录和迁移原进程是两件不同的事。
 
 需要新建项目工作区时，在已经进入的 Herdr 终端中运行：
 
@@ -108,6 +112,10 @@ rtk proxy herdr workspace create --label my-project --cwd /path/to/your/project
 此处 `workspace create` 的 `--label` 和 `--cwd` 已核对本次 Herdr 0.9.3 的命令组帮助；升级后先用 `rtk proxy herdr workspace` 检查语法。使用 CLI 返回或界面显示的真实工作区信息，不从示例推测 pane ID。本次 Collie 只接入专用 Herdr 的 primary session；创建另一套默认实例或命名会话，未必在当前页面中出现。
 
 ## 6. 手机接入
+
+当前优先使用与电脑相同的 Cloudflare 网址，完成邮件验证码登录，再在手机浏览器单独配对。无需手机开启 Tailscale。配对保留与 Access 会话续期是两件事，详见[新入口与验收](./05-cloudflare-access-and-tunnel.mdx)。
+
+以下步骤保留为 Tailscale 方案记录，使用前重新确认 Serve 映射和网络可用：
 
 1. 手机安装 [Tailscale](https://tailscale.com/download)，登录 Linux 使用的同一个账号并开启连接。
 2. 在设备列表确认能看到 Linux 主机。
